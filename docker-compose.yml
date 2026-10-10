@@ -1,0 +1,34 @@
+services:
+  api:
+    build: ./backend
+    container_name: cadria-api
+    environment:
+      DJANGO_DEBUG: "True"
+      DJANGO_SECRET_KEY: "change-me-in-production"
+      AGENT_RUNTIME_ENABLED: "False"
+      ORCHESTRATOR: "LangGraph"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - cadria_db:/app/db
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py seed_demo &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  web:
+    build: ./frontend
+    container_name: cadria-web
+    depends_on:
+      - api
+    environment:
+      VITE_API_URL: "http://api:8000"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  cadria_db:
