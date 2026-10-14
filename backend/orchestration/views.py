@@ -132,7 +132,7 @@ class RunAgentView(views.APIView):
         except AgentDefinition.DoesNotExist:
             return Response({"detail": "Agent inconnu."}, status=status.HTTP_404_NOT_FOUND)
 
-        if not agent.is_available and not settings.AGENT_RUNTIME["ENABLED"]:
+        if not agent.is_available or not settings.AGENT_RUNTIME["ENABLED"]:
             run = _reserve_run(request, project, agent, payload)
             return Response(
                 {
