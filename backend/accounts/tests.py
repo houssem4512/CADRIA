@@ -9,7 +9,7 @@ logique n'est réimplémentée ici.
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -399,6 +399,15 @@ class ProjectTests(TestCase):
 # ===========================================================================
 # Agents — emplacements réservés & validation humaine
 # ===========================================================================
+@override_settings(
+    AGENT_RUNTIME={
+        "ENABLED": False,
+        "SCOPING_ENDPOINT": "",
+        "OPS_ENDPOINT": "",
+        "RISK_ENDPOINT": "",
+        "ORCHESTRATOR": "LangGraph",
+    }
+)
 class AgentTests(TestCase):
     def setUp(self):
         self.pm = make_user("apm@test.io", role=User.Role.PM)
