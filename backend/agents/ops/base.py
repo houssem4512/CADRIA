@@ -16,3 +16,12 @@ class ProviderClient(ABC):
 
     @abstractmethod
     def assign(self, external_task_id: str, member_id: str) -> dict: ...
+
+    def create_epic(self, name: str, description: str = ""):
+        
+        """Optionnel : renvoie {"id", "url"} si le fournisseur gère les epics, sinon None."""
+        return None
+
+    def list_members(self) -> list:
+        """Optionnel : [{"id", "fullName"}] des membres assignables."""
+        return []

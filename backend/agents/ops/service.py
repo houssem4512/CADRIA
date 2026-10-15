@@ -13,6 +13,7 @@ from projects.models import Task
 
 from . import matching
 from .trello_client import TrelloClient
+from .jira_client import JiraClient
 def _norm(text):
     return " ".join((text or "").lower().split())
 
@@ -20,8 +21,9 @@ def _norm(text):
 def _get_client(provider, project, dry_run):
     if provider == "TRELLO":
         return TrelloClient(board_id=project.external_key, dry_run=dry_run)
-    raise ValueError(f"Provider non supporté pour l'instant : {provider}")
-
+    if provider == "JIRA":
+        return JiraClient(project_key=project.external_key, dry_run=dry_run)
+    raise ValueError(f"Fournisseur non supporté : {provider}")
 
 def _audit(run, corr, entity, label, description, metadata):
     AuditLog.objects.create(
@@ -161,10 +163,11 @@ def run_ops(run):
     run.save(update_fields=["started_at", "status"])
 
     payload = run.input_payload or {}
-    provider = payload.get("provider", "TRELLO")
+    project = run.project
+    provider = (payload.get("provider") or project.external_provider or "TRELLO").upper()
+    label = provider.title()          # "Trello" / "Jira"
     dry_run = payload.get("dry_run", True)
     corr = str(uuid.uuid4())[:8]
-    project = run.project
     created, errors, assignments = [], [], []
 
     proposal = Proposal.objects.filter(pk=payload.get("proposal_id"), project=project).first()
@@ -178,14 +181,34 @@ def run_ops(run):
     if not dry_run and proposal.status not in approved:
         return _fail(run, started, "Validation humaine requise : plan non approuvé.")
     if not dry_run and not project.external_key:
-        return _fail(run, started, "project.external_key (id du board) est vide.")
+        return _fail(run, started, "project.external_key (clé du projet / id du board) est vide.")
 
     try:
         client = _get_client(provider, project, dry_run)
     except ValueError as exc:
         return _fail(run, started, str(exc))
 
-    # 1) Sprints -> listes (idempotent via sprint.external_id)
+    # 1) Lots -> epics (seulement si le fournisseur sait en créer : Jira)
+    epic_ids = {}
+    for wp in project.work_packages.all():
+        if wp.external_id:
+            epic_ids[wp.pk] = wp.external_id
+            continue
+        try:
+            res = client.create_epic(wp.name, wp.description)
+        except (RuntimeError, requests.RequestException) as exc:
+            errors.append(f"Epic « {wp.name} » : {exc}")
+            continue
+        if not res:
+            break                      # ce fournisseur n'a pas d'epics (Trello)
+        epic_ids[wp.pk] = res["id"]
+        if not dry_run:
+            wp.external_id = res["id"]
+            wp.save(update_fields=["external_id"])
+            _audit(run, corr, wp, wp.name, f"Epic {label} créé : {wp.name}",
+                   {"provider": provider, "external_id": res["id"]})
+
+    # 2) Sprints (idempotent via sprint.external_id)
     list_ids = {}
     for sprint in project.sprints.all():
         if sprint.external_id:
@@ -200,26 +223,34 @@ def run_ops(run):
         if not dry_run:
             sprint.external_id = res["id"]
             sprint.save(update_fields=["external_id"])
-            _audit(run, corr, sprint, sprint.name, f"Liste Trello créée pour {sprint.name}",
+            _audit(run, corr, sprint, sprint.name, f"Sprint {label} créé : {sprint.name}",
                    {"provider": provider, "external_id": res["id"]})
 
-        # 2) Membres du board Trello, pour pouvoir assigner les cartes
+    # 3) Membres assignables, pour pouvoir assigner les tickets
     member_map = {}
     if not dry_run:
         try:
             by_name = {_norm(m.get("fullName", "")): m["id"] for m in client.list_members()}
             member_map = {u.pk: by_name.get(_norm(u.full_name)) for u in project.members.all()}
         except (RuntimeError, requests.RequestException) as exc:
-            errors.append(f"Membres du board Trello : {exc}")
+            errors.append(f"Membres {label} : {exc}")
 
-    # 3) Tâches -> cartes (idempotent via task.external_id) + assignation du membre
+    # 4) Tâches -> cartes/tickets (idempotent via task.external_id) + assignation
     for task in project.tasks.filter(external_id="").select_related("assignee"):
         list_id = list_ids.get(task.sprint_id)
         if not list_id:
             errors.append(f"Tâche « {task.title} » : aucun sprint, ignorée.")
             continue
         try:
-            res = client.create_task(list_id, {"title": task.title, "description": task.description})
+            res = client.create_task(list_id, {
+                "title": task.title,
+                "description": task.description,
+                "type": task.task_type,
+                "priority": task.priority,
+                "story_points": task.story_points,
+                "skills": task.required_skills,
+                "epic_id": epic_ids.get(task.work_package_id),
+            })
         except (RuntimeError, requests.RequestException) as exc:
             errors.append(f"Tâche « {task.title} » : {exc}")
             continue
@@ -231,7 +262,7 @@ def run_ops(run):
             task.external_id = res["id"]
             task.external_url = res.get("url", "")
             task.save(update_fields=["external_id", "external_url"])
-            _audit(run, corr, task, task.title, f"Carte Trello créée : {task.title}",
+            _audit(run, corr, task, task.title, f"Ticket {label} créé : {task.title}",
                    {"provider": provider, "external_id": res["id"]})
 
         who = task.assignee
@@ -242,7 +273,7 @@ def run_ops(run):
             continue
         member_id = member_map.get(who.pk)
         if not member_id:
-            errors.append(f"Tâche « {task.title} » : {who.full_name} est introuvable sur le board Trello.")
+            errors.append(f"Tâche « {task.title} » : {who.full_name} est introuvable sur {label}.")
             continue
         try:
             client.assign(res["id"], member_id)
@@ -251,10 +282,10 @@ def run_ops(run):
             continue
         assignments.append({
             "task_id": task.pk, "member": who.full_name,
-            "trello_member_id": member_id, "dry_run": False,
+            "member_external_id": member_id, "dry_run": False,
         })
-        _audit(run, corr, task, task.title, f"{who.full_name} assigné(e) à la carte « {task.title} »",
-               {"provider": provider, "trello_member_id": member_id})
+        _audit(run, corr, task, task.title, f"{who.full_name} assigné(e) à « {task.title} »",
+               {"provider": provider, "member_external_id": member_id})
 
     if not dry_run and not errors:
         proposal.status = Proposal.Status.APPLIED

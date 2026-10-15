@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from django.core.management import call_command
+from .seed_helper import seed_demo_data
 from django.test import TestCase
 
 from orchestration.models import AgentDefinition, AgentRun, Proposal
@@ -44,7 +44,7 @@ class FakeTrello:
 class OpsPushTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        call_command("seed_demo", verbosity=0)
+        seed_demo_data()
 
     def setUp(self):
         for prop in Proposal.objects.all():
