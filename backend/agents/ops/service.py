@@ -13,6 +13,8 @@ from projects.models import Task
 
 from . import matching
 from .trello_client import TrelloClient
+def _norm(text):
+    return " ".join((text or "").lower().split())
 
 
 def _get_client(provider, project, dry_run):
@@ -163,7 +165,7 @@ def run_ops(run):
     dry_run = payload.get("dry_run", True)
     corr = str(uuid.uuid4())[:8]
     project = run.project
-    created, errors = [], []
+    created, errors, assignments = [], [], []
 
     proposal = Proposal.objects.filter(pk=payload.get("proposal_id"), project=project).first()
     if not proposal:
@@ -201,8 +203,17 @@ def run_ops(run):
             _audit(run, corr, sprint, sprint.name, f"Liste Trello créée pour {sprint.name}",
                    {"provider": provider, "external_id": res["id"]})
 
-    # 2) Tâches -> cartes (idempotent via task.external_id)
-    for task in project.tasks.filter(external_id=""):
+        # 2) Membres du board Trello, pour pouvoir assigner les cartes
+    member_map = {}
+    if not dry_run:
+        try:
+            by_name = {_norm(m.get("fullName", "")): m["id"] for m in client.list_members()}
+            member_map = {u.pk: by_name.get(_norm(u.full_name)) for u in project.members.all()}
+        except (RuntimeError, requests.RequestException) as exc:
+            errors.append(f"Membres du board Trello : {exc}")
+
+    # 3) Tâches -> cartes (idempotent via task.external_id) + assignation du membre
+    for task in project.tasks.filter(external_id="").select_related("assignee"):
         list_id = list_ids.get(task.sprint_id)
         if not list_id:
             errors.append(f"Tâche « {task.title} » : aucun sprint, ignorée.")
@@ -223,13 +234,35 @@ def run_ops(run):
             _audit(run, corr, task, task.title, f"Carte Trello créée : {task.title}",
                    {"provider": provider, "external_id": res["id"]})
 
+        who = task.assignee
+        if who is None:
+            continue
+        if dry_run:
+            assignments.append({"task_id": task.pk, "member": who.full_name, "dry_run": True})
+            continue
+        member_id = member_map.get(who.pk)
+        if not member_id:
+            errors.append(f"Tâche « {task.title} » : {who.full_name} est introuvable sur le board Trello.")
+            continue
+        try:
+            client.assign(res["id"], member_id)
+        except (RuntimeError, requests.RequestException) as exc:
+            errors.append(f"Assignation « {task.title} » : {exc}")
+            continue
+        assignments.append({
+            "task_id": task.pk, "member": who.full_name,
+            "trello_member_id": member_id, "dry_run": False,
+        })
+        _audit(run, corr, task, task.title, f"{who.full_name} assigné(e) à la carte « {task.title} »",
+               {"provider": provider, "trello_member_id": member_id})
+
     if not dry_run and not errors:
         proposal.status = Proposal.Status.APPLIED
         proposal.save(update_fields=["status"])
 
     output = {
         "created": created,
-        "assignments": [],  # à venir : appliquer les assignations acceptées dans Trello
+        "assignments": assignments,
         "api_calls": client.api_calls,
         "errors": errors,
         "dry_run": dry_run,

@@ -41,3 +41,8 @@ class TrelloClient(ProviderClient):
 
     def assign(self, external_task_id: str, member_id: str) -> dict:
         return self._request("POST", f"/cards/{external_task_id}/idMembers", value=member_id)
+
+    def list_members(self) -> list:
+        if self.dry_run:
+            return []
+        return self._request("GET", f"/boards/{self.board_id}/members", fields="fullName,username")
