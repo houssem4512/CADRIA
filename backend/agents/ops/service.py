@@ -1,13 +1,17 @@
-"""Agent 2 (OPS) : envoie un plan validé vers Trello, de façon idempotente et tracée."""
+"""Agent 2 (OPS) : suggère des assignations et envoie un plan validé vers Trello,
+de façon idempotente et tracée."""
 import time
 import uuid
 
 import requests
+from django.db.models import Sum
 from django.utils import timezone
 
 from audit.models import AuditLog
-from orchestration.models import AgentRun, Proposal
+from orchestration.models import AgentRun, AssignmentSuggestion, Proposal
+from projects.models import Task
 
+from . import matching
 from .trello_client import TrelloClient
 
 
@@ -59,6 +63,95 @@ def _fail(run, started, message):
     return _finish(run, started, AgentRun.Status.FAILED, message, output, message)
 
 
+def _suggest(run, started, proposal, corr):
+    """Mode 'suggest' : matching compétences/charge -> AssignmentSuggestion (aucune écriture externe)."""
+    members = []
+    for user in run.project.members.all():
+        skills = {us.skill.name: us.level for us in user.skills.select_related("skill")}
+        load = (
+            Task.objects.filter(assignee=user).exclude(status="DONE")
+            .aggregate(h=Sum("estimate_hours"))["h"] or 0
+        )
+        members.append({
+            "id": user.pk,
+            "skills": skills,
+            "load": float(load),
+            "capacity": float(user.weekly_capacity_hours or 0),
+        })
+    if not members:
+        return _fail(run, started, "Aucun membre dans le projet : assignation impossible.")
+
+    tasks = []
+    for idx, t in enumerate(proposal.tasks_payload or []):
+        title = t.get("title") or f"Tâche {idx + 1}"
+        tasks.append({
+            "ref": t.get("ref") or title,
+            "title": title,
+            "skills": t.get("skills") or [],
+            "hours": float(t.get("estimate_hours") or 0),
+        })
+    if not tasks:
+        return _fail(run, started, "La proposition ne contient aucune tâche.")
+
+    # Une tâche déjà acceptée/refusée par l'humain n'est jamais réassignée.
+    decided = set(
+        proposal.assignments.filter(accepted__isnull=False).values_list("task_ref", flat=True)
+    )
+    tasks = [t for t in tasks if t["ref"] not in decided]
+    if not tasks:
+        return _fail(run, started, "Toutes les tâches ont déjà une décision humaine.")
+
+    results = matching.assign(tasks, members)
+    title_by_ref = {t["ref"]: t["title"] for t in tasks}
+
+    # Idempotent : on remplace les suggestions non encore tranchées par l'humain.
+    proposal.assignments.filter(accepted__isnull=True).delete()
+    for r in results:
+        AssignmentSuggestion.objects.create(
+            proposal=proposal,
+            task_ref=r["ref"],
+            task_title=title_by_ref[r["ref"]],
+            candidate_id=r["member_id"],
+            match_score=r["score"],
+            rationale=r["rationale"],
+            matched_skills=r["matched_skills"],
+            workload_before_hours=round(r["workload_before"], 1),
+            workload_after_hours=round(r["workload_after"], 1),
+        )
+
+    report = matching.balance_report(tasks, members, results)
+    balance = report["after"]
+
+    AuditLog.objects.create(
+        actor=run.triggered_by,
+        action=AuditLog.Action.AGENT_RUN,
+        severity=AuditLog.Severity.NOTICE,
+        entity_type="Proposal", entity_id=str(proposal.pk), entity_label=proposal.title,
+        description=f"Agent 2 : {len(results)} assignation(s) suggérée(s) (indice d'équilibrage {balance:.2f}).",
+        agent_key="OPS", run=run, correlation_id=corr,
+        metadata={"similarity_backend": matching.backend_name()},
+    )
+
+    output = {
+        "created": [],
+        "assignments": [
+            {"task_ref": r["ref"], "member_id": r["member_id"], "score": r["score"],
+             "matched_skills": r["matched_skills"]}
+            for r in results
+        ],
+        "api_calls": 0,
+        "errors": [],
+        "metrics": {
+            "load_balance_before": round(report["before"], 3),
+            "load_balance_after": round(report["after"], 3),
+            "horizon_weeks": round(report["horizon_weeks"], 1),
+            "overloaded_member_ids": report["overloaded"],
+            "similarity_backend": matching.backend_name(),
+        },
+    }
+    return _finish(run, started, AgentRun.Status.SUCCEEDED, "Assignations suggérées", output)
+
+
 def run_ops(run):
     started = time.monotonic()
     run.started_at = timezone.now()
@@ -75,6 +168,8 @@ def run_ops(run):
     proposal = Proposal.objects.filter(pk=payload.get("proposal_id"), project=project).first()
     if not proposal:
         return _fail(run, started, "proposal_id invalide ou hors projet.")
+    if payload.get("mode") == "suggest":
+        return _suggest(run, started, proposal, corr)
 
     # Validation humaine : aucune écriture réelle sans plan approuvé.
     approved = (Proposal.Status.APPROVED, Proposal.Status.APPLIED)
@@ -134,7 +229,7 @@ def run_ops(run):
 
     output = {
         "created": created,
-        "assignments": [],  # à venir : étape matching
+        "assignments": [],  # à venir : appliquer les assignations acceptées dans Trello
         "api_calls": client.api_calls,
         "errors": errors,
         "dry_run": dry_run,

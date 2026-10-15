@@ -1,11 +1,10 @@
 """Matching compétences (embeddings) + affectation optimale (algorithme hongrois)."""
-import math
 from difflib import SequenceMatcher
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-LOAD_WEIGHT = 0.35        # poids de la charge dans le coût (0 = on ignore la charge)
+LOAD_WEIGHT = 0.8         # poids de la charge dans le coût (0 = on ignore la charge)
 DEFAULT_CAPACITY = 35.0   # heures/semaine si la capacité du membre est inconnue
 
 _MODEL = None
@@ -59,17 +58,28 @@ def skill_score(required, member_skills):
     return float(np.mean(scores)), matched
 
 
+def _capacity(member):
+    return member["capacity"] or DEFAULT_CAPACITY
+
+
+def horizon_weeks(tasks, members):
+    """Nb de semaines qu'il faut à l'équipe pour écouler charge existante + nouvelles tâches."""
+    total_hours = sum(t["hours"] for t in tasks) + sum(m["load"] for m in members)
+    total_capacity = sum(_capacity(m) for m in members) or DEFAULT_CAPACITY
+    return max(1.0, total_hours / total_capacity)
+
+
 def assign(tasks, members):
     """
     tasks   : [{"ref", "title", "skills": [str], "hours": float}]
     members : [{"id", "skills": {nom: niveau}, "load": heures déjà planifiées, "capacity": h/semaine}]
-    Retourne une suggestion par tâche (même ordre que `tasks`).
+    Retourne une suggestion par tâche.
     """
     if not tasks or not members:
         return []
     n, m = len(tasks), len(members)
     avg_hours = (sum(t["hours"] for t in tasks) / n) or 1.0
-    slots = math.ceil(n / m) + 1
+    weeks = horizon_weeks(tasks, members)
 
     skill = np.zeros((n, m))
     matched = {}
@@ -77,15 +87,15 @@ def assign(tasks, members):
         for j, mem in enumerate(members):
             skill[i, j], matched[i, j] = skill_score(t["skills"], mem["skills"])
 
-    # Colonnes = (membre, rang). Le coût de charge croît avec le rang : le
-    # problème d'affectation répartit donc le travail au lieu de tout empiler.
-    cols = [(j, k) for j in range(m) for k in range(slots)]
+    # Colonnes = (membre, rang). Le coût de charge est convexe (ratio²) : un membre
+    # qui approche ou dépasse sa capacité sur l'horizon devient très coûteux.
+    cols = [(j, k) for j in range(m) for k in range(n)]
     cost = np.zeros((n, len(cols)))
     for c, (j, k) in enumerate(cols):
-        cap = members[j]["capacity"] or DEFAULT_CAPACITY
-        base = (members[j]["load"] + k * avg_hours) / cap
+        cap_h = _capacity(members[j]) * weeks
         for i, t in enumerate(tasks):
-            cost[i, c] = -skill[i, j] + LOAD_WEIGHT * (base + t["hours"] / cap)
+            ratio_after = (members[j]["load"] + k * avg_hours + t["hours"]) / cap_h
+            cost[i, c] = -skill[i, j] + LOAD_WEIGHT * ratio_after ** 2
 
     rows, picked = linear_sum_assignment(cost)
 
@@ -96,7 +106,6 @@ def assign(tasks, members):
         mem, t = members[j], tasks[i]
         before = load[j]
         load[j] += t["hours"]
-        cap = mem["capacity"] or DEFAULT_CAPACITY
         skills_txt = ", ".join(matched[i, j]) or "aucune correspondance forte"
         out.append({
             "ref": t["ref"],
@@ -105,7 +114,7 @@ def assign(tasks, members):
             "matched_skills": matched[i, j],
             "workload_before": before,
             "workload_after": load[j],
-            "rationale": f"Compétences : {skills_txt} · charge {before:.0f} h → {load[j]:.0f} h sur {cap:.0f} h.",
+            "rationale": f"Compétences : {skills_txt} · charge {before:.0f} h → {load[j]:.0f} h.",
         })
     return out
 
@@ -118,3 +127,23 @@ def load_balance_index(loads):
     mean = sum(loads) / len(loads)
     std = (sum((x - mean) ** 2 for x in loads) / len(loads)) ** 0.5
     return max(0.0, 1 - std / mean)
+
+
+def balance_report(tasks, members, results):
+    """Indice d'équilibrage (sur le taux d'utilisation = charge / capacité) avant et après."""
+    weeks = horizon_weeks(tasks, members)
+    cap = {mem["id"]: _capacity(mem) * weeks for mem in members}
+    before = {mem["id"]: mem["load"] for mem in members}
+    after = dict(before)
+    for r in results:
+        after[r["member_id"]] = r["workload_after"]
+    # On mesure l'équilibre entre les membres que l'agent peut réellement charger
+    # (ceux déjà en surcharge sont exclus du calcul et signalés à part).
+    eligible = [k for k in before if before[k] <= cap[k]] or list(before)
+    util = lambda loads: [loads[k] / cap[k] for k in eligible]
+    return {
+        "before": load_balance_index(util(before)),
+        "after": load_balance_index(util(after)),
+        "horizon_weeks": weeks,
+        "overloaded": [k for k in before if before[k] > cap[k]],
+    }
