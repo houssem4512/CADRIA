@@ -6,3 +6,4 @@ django-cors-headers==4.9.0
 
 # Production (optionnel, pour PostgreSQL)
 # psycopg2-binary==2.9.10
+requests
