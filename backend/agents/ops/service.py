@@ -3,6 +3,10 @@ de façon idempotente et tracée."""
 import time
 import uuid
 
+from .graph import build_graph, initial_state
+from .tools import OpsToolbox
+
+
 import requests
 from django.db.models import Sum
 from django.utils import timezone
@@ -165,10 +169,8 @@ def run_ops(run):
     payload = run.input_payload or {}
     project = run.project
     provider = (payload.get("provider") or project.external_provider or "TRELLO").upper()
-    label = provider.title()          # "Trello" / "Jira"
     dry_run = payload.get("dry_run", True)
     corr = str(uuid.uuid4())[:8]
-    created, errors, assignments = [], [], []
 
     proposal = Proposal.objects.filter(pk=payload.get("proposal_id"), project=project).first()
     if not proposal:
@@ -176,129 +178,25 @@ def run_ops(run):
     if payload.get("mode") == "suggest":
         return _suggest(run, started, proposal, corr)
 
-    # Validation humaine : aucune écriture réelle sans plan approuvé.
-    approved = (Proposal.Status.APPROVED, Proposal.Status.APPLIED)
-    if not dry_run and proposal.status not in approved:
-        return _fail(run, started, "Validation humaine requise : plan non approuvé.")
-    if not dry_run and not project.external_key:
-        return _fail(run, started, "project.external_key (clé du projet / id du board) est vide.")
-
     try:
         client = _get_client(provider, project, dry_run)
     except ValueError as exc:
         return _fail(run, started, str(exc))
 
-    # 1) Lots -> epics (seulement si le fournisseur sait en créer : Jira)
-    epic_ids = {}
-    for wp in project.work_packages.all():
-        if wp.external_id:
-            epic_ids[wp.pk] = wp.external_id
-            continue
-        try:
-            res = client.create_epic(wp.name, wp.description)
-        except (RuntimeError, requests.RequestException) as exc:
-            errors.append(f"Epic « {wp.name} » : {exc}")
-            continue
-        if not res:
-            break                      # ce fournisseur n'a pas d'epics (Trello)
-        epic_ids[wp.pk] = res["id"]
-        if not dry_run:
-            wp.external_id = res["id"]
-            wp.save(update_fields=["external_id"])
-            _audit(run, corr, wp, wp.name, f"Epic {label} créé : {wp.name}",
-                   {"provider": provider, "external_id": res["id"]})
-
-    # 2) Sprints (idempotent via sprint.external_id)
-    list_ids = {}
-    for sprint in project.sprints.all():
-        if sprint.external_id:
-            list_ids[sprint.pk] = sprint.external_id
-            continue
-        try:
-            res = client.create_sprint(sprint.name)
-        except (RuntimeError, requests.RequestException) as exc:
-            errors.append(f"Sprint « {sprint.name} » : {exc}")
-            continue
-        list_ids[sprint.pk] = res["id"]
-        if not dry_run:
-            sprint.external_id = res["id"]
-            sprint.save(update_fields=["external_id"])
-            _audit(run, corr, sprint, sprint.name, f"Sprint {label} créé : {sprint.name}",
-                   {"provider": provider, "external_id": res["id"]})
-
-    # 3) Membres assignables, pour pouvoir assigner les tickets
-    member_map = {}
-    if not dry_run:
-        try:
-            by_name = {_norm(m.get("fullName", "")): m["id"] for m in client.list_members()}
-            member_map = {u.pk: by_name.get(_norm(u.full_name)) for u in project.members.all()}
-        except (RuntimeError, requests.RequestException) as exc:
-            errors.append(f"Membres {label} : {exc}")
-
-    # 4) Tâches -> cartes/tickets (idempotent via task.external_id) + assignation
-    for task in project.tasks.filter(external_id="").select_related("assignee"):
-        list_id = list_ids.get(task.sprint_id)
-        if not list_id:
-            errors.append(f"Tâche « {task.title} » : aucun sprint, ignorée.")
-            continue
-        try:
-            res = client.create_task(list_id, {
-                "title": task.title,
-                "description": task.description,
-                "type": task.task_type,
-                "priority": task.priority,
-                "story_points": task.story_points,
-                "skills": task.required_skills,
-                "epic_id": epic_ids.get(task.work_package_id),
-            })
-        except (RuntimeError, requests.RequestException) as exc:
-            errors.append(f"Tâche « {task.title} » : {exc}")
-            continue
-        created.append({
-            "entity": "issue", "task_id": task.pk,
-            "external_id": res["id"], "external_url": res.get("url", ""), "dry_run": dry_run,
-        })
-        if not dry_run:
-            task.external_id = res["id"]
-            task.external_url = res.get("url", "")
-            task.save(update_fields=["external_id", "external_url"])
-            _audit(run, corr, task, task.title, f"Ticket {label} créé : {task.title}",
-                   {"provider": provider, "external_id": res["id"]})
-
-        who = task.assignee
-        if who is None:
-            continue
-        if dry_run:
-            assignments.append({"task_id": task.pk, "member": who.full_name, "dry_run": True})
-            continue
-        member_id = member_map.get(who.pk)
-        if not member_id:
-            errors.append(f"Tâche « {task.title} » : {who.full_name} est introuvable sur {label}.")
-            continue
-        try:
-            client.assign(res["id"], member_id)
-        except (RuntimeError, requests.RequestException) as exc:
-            errors.append(f"Assignation « {task.title} » : {exc}")
-            continue
-        assignments.append({
-            "task_id": task.pk, "member": who.full_name,
-            "member_external_id": member_id, "dry_run": False,
-        })
-        _audit(run, corr, task, task.title, f"{who.full_name} assigné(e) à « {task.title} »",
-               {"provider": provider, "member_external_id": member_id})
-
-    if not dry_run and not errors:
-        proposal.status = Proposal.Status.APPLIED
-        proposal.save(update_fields=["status"])
+    box = OpsToolbox(run, client, provider, corr, dry_run)
+    final = build_graph(box, proposal, project).invoke(initial_state())
+    if final["failed"]:
+        return _fail(run, started, final["failed"])
 
     output = {
-        "created": created,
-        "assignments": assignments,
+        "created": final["created"],
+        "assignments": final["assignments"],
         "api_calls": client.api_calls,
-        "errors": errors,
+        "errors": final["errors"],
         "dry_run": dry_run,
+        "trace": final["trace"],
     }
-    ok = bool(created) or not errors
+    ok = bool(final["created"]) or not final["errors"]
     status = AgentRun.Status.SUCCEEDED if ok else AgentRun.Status.FAILED
     step = "Terminé (simulation)" if dry_run else "Terminé"
-    return _finish(run, started, status, step, output, "; ".join(errors))
+    return _finish(run, started, status, step, output, "; ".join(final["errors"]))

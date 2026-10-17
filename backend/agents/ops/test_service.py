@@ -94,3 +94,12 @@ class OpsPushTests(TestCase):
 
         self._run(dry_run=False)                        # deuxième exécution
         self.assertEqual(self.fake.count("POST", "/cards"), cards_1)   # aucun doublon
+
+
+    def test_trace_ordonnee(self):
+        run = self._run(dry_run=True)
+        trace = run.output_payload["trace"]
+        tools = [t["tool"] for t in trace]
+        self.assertEqual([t["seq"] for t in trace], list(range(1, len(trace) + 1)))
+        self.assertLess(tools.index("create_sprint"), tools.index("create_issue"))
+        self.assertTrue(all(t["agent"] == "OPS" for t in trace))

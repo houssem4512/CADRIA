@@ -10,3 +10,4 @@ requests
 scipy
 numpy
 sentence-transformers
+langgraph
