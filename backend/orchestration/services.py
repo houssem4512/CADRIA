@@ -60,6 +60,10 @@ def dispatch(run) -> AgentDispatchResult:
 
     Soulève NotImplementedError tant que le runtime n'est pas branché.
     """
+    if run.agent.key == "OPS":
+        from agents.ops.service import run_ops
+        return run_ops(run)
+
     raise NotImplementedError(
         "Aucun runtime d'agent branché. Implémentez orchestration.services.dispatch() "
         "puis activez AGENT_RUNTIME_ENABLED=True."
