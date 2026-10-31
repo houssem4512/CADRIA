@@ -33,6 +33,8 @@ export default function Agents() {
   const [picker, setPicker] = useState({ project: '', agent: 'SCOPING' })
 
   const totals = monitor.totals || {}
+  const runtimeEnabled = !!monitor.enabled
+  const runtimeMode = monitor.mode || 'LOCAL'
 
   const refreshAll = async () => { await refetch(); await refetchMonitor(); await refetchRuns() }
 
@@ -66,21 +68,29 @@ export default function Agents() {
           <p className="text-[12px] font-semibold uppercase tracking-wider text-brand-600">Copilote</p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-[28px]">Agents & orchestration</h1>
           <p className="mt-1 text-[14px] text-slate-500">
-            Trois agents spécialisés coordonnés par un orchestrateur — emplacements réservés en attente du runtime.
+            Trois agents spécialisés coordonnés par un orchestrateur, avec validation humaine avant toute écriture externe.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge className="badge-purple"><Dot className="bg-violet-500" pulse /> Runtime non branché</Badge>
+          {runtimeEnabled
+            ? <Badge className="badge-success"><Dot className="bg-emerald-500" pulse /> Runtime actif · {runtimeMode}</Badge>
+            : <Badge className="badge-purple"><Dot className="bg-violet-500" pulse /> Runtime non branché</Badge>}
           <Button variant="secondary" icon={RefreshCw} onClick={refreshAll}>Actualiser</Button>
         </div>
       </header>
 
-      <Alert tone="info" title="Emplacement réservé — aucune inférence simulée">
-        Le contrat d’entrée/sortie de chaque agent est figé côté plateforme. Chaque lancement crée une
-        exécution journalisée au statut « réservé », sans appel de modèle ni écriture externe. Branchez
-        le runtime (<code className="rounded bg-white/70 px-1 font-mono text-[11.5px]">AGENT_RUNTIME_ENABLED=True</code> +{' '}
-        <code className="rounded bg-white/70 px-1 font-mono text-[11.5px]">dispatch()</code>) pour activer l’inférence.
-      </Alert>
+      {runtimeEnabled ? (
+        <Alert tone="success" title="Runtime d’agents opérationnel">
+          Mode <b>{runtimeMode}</b> : les lancements exécutent les moteurs des agents et journalisent
+          chaque étape. L’Agent 1 produit un plan soumis à validation ; l’Agent 3 matérialise ses alertes.
+          Aucune écriture Jira/Trello sans validation explicite.
+        </Alert>
+      ) : (
+        <Alert tone="info" title="Runtime désactivé — aucune inférence simulée">
+          Les lancements créent une exécution au statut « réservé », journalisée dans l’audit.
+          Activez <code className="rounded bg-white/70 px-1 font-mono text-[11.5px]">AGENT_RUNTIME_ENABLED=True</code> pour exécuter les agents.
+        </Alert>
+      )}
 
       {/* ------------------------------- Supervision ------------------------------- */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -137,7 +147,9 @@ export default function Agents() {
             <Button className="w-full" icon={PlayCircle} disabled={!picker.project}
               loading={!!launching} onClick={launch}>Lancer l’exécution</Button>
             <p className="hint">
-              Le résultat est une exécution « réservée » : aucune inférence, aucune écriture externe.
+              {runtimeEnabled
+                ? 'L’exécution et ses résultats sont journalisés dans l’audit. L’Agent 1 crée un plan à valider.'
+                : 'Le résultat est une exécution « réservée » : aucune inférence, aucune écriture externe.'}
             </p>
           </div>
         </Card>
@@ -174,7 +186,9 @@ export default function Agents() {
                   <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">{a.key}</span>
                   <h3 className="mt-0.5 text-[15px] font-semibold leading-snug text-slate-900">{a.name}</h3>
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    <Badge className="badge-purple">Emplacement réservé</Badge>
+                    {a.is_available && runtimeEnabled
+                      ? <Badge className="badge-success">Actif</Badge>
+                      : <Badge className="badge-purple">Réservé</Badge>}
                     {a.requires_human_validation && <Badge className="badge-warning">Validation humaine</Badge>}
                   </div>
                 </div>

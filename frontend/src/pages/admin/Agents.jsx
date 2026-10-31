@@ -55,7 +55,10 @@ export default function AdminAgents() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge className="badge-purple"><Dot className="bg-violet-500" pulse /> Runtime {monitor?.enabled ? 'branché' : 'non branché'}</Badge>
+          <Badge className={monitor?.enabled ? 'badge-success' : 'badge-purple'}>
+            <Dot className={monitor?.enabled ? 'bg-emerald-500' : 'bg-violet-500'} pulse />
+            Runtime {monitor?.enabled ? `actif · ${monitor?.mode || 'LOCAL'}` : 'non branché'}
+          </Badge>
           <Button variant="secondary" icon={RefreshCw} onClick={refreshAll}>Actualiser</Button>
         </div>
       </header>
@@ -156,7 +159,9 @@ export default function AdminAgents() {
                     <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">{a.key}</span>
                     <h3 className="mt-0.5 text-[15px] font-semibold leading-snug text-slate-900">{a.name}</h3>
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      <Badge className="badge-purple">Emplacement réservé</Badge>
+                      {a.is_available && monitor?.enabled
+                        ? <Badge className="badge-success">Actif</Badge>
+                        : <Badge className="badge-purple">Réservé</Badge>}
                       {a.requires_human_validation && <Badge className="badge-warning">Validation humaine</Badge>}
                     </div>
                   </div>

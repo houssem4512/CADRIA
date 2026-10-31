@@ -306,7 +306,7 @@ export default function ProjectNew() {
                       checked={form.run_scoping}
                       onChange={(v) => setForm({ ...form, run_scoping: v })}
                       label="Lancer l’Agent 1 après la création"
-                      description="Le lancement est journalisé en « emplacement réservé » tant que le runtime n’est pas branché."
+                      description="Le plan proposé par l’Agent 1 sera disponible dans l’onglet Validation du projet."
                     />
                   </div>
                 </div>

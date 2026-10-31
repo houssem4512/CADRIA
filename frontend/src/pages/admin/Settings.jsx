@@ -57,8 +57,8 @@ export default function AdminSettings() {
             <div className="card-body space-y-4">
               <Alert tone="info" title="État actuel">
                 {monitor?.enabled
-                  ? 'Le runtime est branché : les lancements d’agents appellent le service d’inférence.'
-                  : 'Aucun runtime n’est branché. Les lancements créent des exécutions au statut « réservé », journalisées dans l’audit, sans appel de modèle ni écriture externe.'}
+                  ? `Le runtime est actif en mode ${monitor?.mode || 'LOCAL'} : les lancements exécutent les moteurs des agents et persistent leurs résultats.`
+                  : 'Le runtime est désactivé. Les lancements créent des exécutions au statut « réservé », journalisées dans l’audit, sans inférence.'}
               </Alert>
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -74,13 +74,14 @@ export default function AdminSettings() {
 
               <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                 <p className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-800">
-                  <KeyRound size={14} className="text-brand-600" /> Pour brancher le runtime
+                  <KeyRound size={14} className="text-brand-600" />
+                  {monitor?.enabled ? 'Configuration du runtime' : 'Activer le runtime'}
                 </p>
                 <ol className="mt-2.5 space-y-2 text-[12.5px] text-slate-600">
                   {[
-                    ['1', 'Implémenter orchestration/services.py::dispatch(run) — appel HTTP au runtime, file Celery ou exécution locale.'],
-                    ['2', 'Renseigner le champ runtime_endpoint de chaque AgentDefinition.'],
-                    ['3', 'Passer la variable d’environnement AGENT_RUNTIME_ENABLED=True, puis redémarrer l’API.'],
+                    ['1', 'Mode LOCAL : les moteurs embarqués (orchestration/engines.py) sont exécutés dans l’API.'],
+                    ['2', 'Mode HTTP : lancer python -m orchestration.runtime_server puis renseigner les URLs des agents.'],
+                    ['3', 'AGENT_RUNTIME_ENABLED=True et AGENT_RUNTIME_MODE=LOCAL|HTTP, puis redémarrer l’API.'],
                   ].map(([n, t]) => (
                     <li key={n} className="flex gap-2.5">
                       <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand-600 text-[10.5px] font-bold text-white">
@@ -93,10 +94,13 @@ export default function AdminSettings() {
                 <pre className="mt-3 overflow-x-auto rounded-lg bg-slate-900 p-3 font-mono text-[11px] leading-relaxed text-slate-100">
 {`# config/settings.py — variables d'environnement
 AGENT_RUNTIME_ENABLED=True
-SCOPING_AGENT_URL=https://agents.local/scoping
-OPS_AGENT_URL=https://agents.local/ops
-RISK_AGENT_URL=https://agents.local/risk
-ORCHESTRATOR=LangGraph`}
+AGENT_RUNTIME_MODE=LOCAL
+ORCHESTRATOR=CadriaRuntime
+
+# Mode HTTP (optionnel)
+# SCOPING_AGENT_URL=http://127.0.0.1:8100/scoping
+# OPS_AGENT_URL=http://127.0.0.1:8100/ops
+# RISK_AGENT_URL=http://127.0.0.1:8100/risk`}
                 </pre>
               </div>
 
@@ -108,10 +112,12 @@ ORCHESTRATOR=LangGraph`}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] font-semibold text-slate-800">{a.name}</p>
                       <p className="truncate font-mono text-[11px] text-slate-500">
-                        {a.runtime_endpoint || '— endpoint non configuré —'}
+                        {a.runtime_endpoint || `mode ${monitor?.mode || 'LOCAL'} — moteur embarqué`}
                       </p>
                     </div>
-                    <Badge className="badge-purple">Réservé</Badge>
+                    {a.is_available && monitor?.enabled
+                      ? <Badge className="badge-success">Actif</Badge>
+                      : <Badge className="badge-purple">Réservé</Badge>}
                     {a.requires_human_validation && <Badge className="badge-warning">Validation humaine</Badge>}
                   </div>
                 ))}

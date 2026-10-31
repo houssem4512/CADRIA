@@ -926,18 +926,26 @@ function AddMemberModal({ project, onClose, onSaved }) {
  * ========================================================================= */
 function AgentsTab({ project, onChanged, canEdit }) {
   const { data: agentsData } = useQuery('/agents/')
+  const { data: monitor } = useQuery('/agents/monitor/')
   const { data: runsData, refetch: refetchRuns } = useQuery('/agent-runs/', { params: { project: project.id } })
   const agents = agentsData?.results ?? agentsData ?? []
   const runs = runsData?.results ?? runsData ?? []
+  const runtimeEnabled = !!monitor?.enabled
   const [launching, setLaunching] = useState(null)
   const [result, setResult] = useState(null)
 
-  const launch = async (agent) => {
+  const [scopingModal, setScopingModal] = useState(false)
+
+  const launch = async (agent, input = {}) => {
     setLaunching(agent.key)
     try {
       const { data } = await api.post('/agents/runs/start/', {
         project: project.id, agent: agent.key,
-        input: { brief: project.brief, project_reference: project.reference },
+        input: {
+          brief: project.brief,
+          project_reference: project.reference,
+          ...input,
+        },
       })
       setResult(data)
       await refetchRuns(); await onChanged()
@@ -946,13 +954,26 @@ function AgentsTab({ project, onChanged, canEdit }) {
     } finally { setLaunching(null) }
   }
 
+  const handleLaunch = (agent) => {
+    if (agent.key === 'SCOPING') {
+      setScopingModal(true)
+    } else {
+      launch(agent)
+    }
+  }
+
   return (
     <div className="space-y-5">
       {result && (
-        <Alert tone={result.reserved ? 'info' : 'success'}
-          title={result.reserved ? 'Emplacement réservé — aucune inférence effectuée' : 'Exécution lancée'}
+        <Alert tone={result.reserved ? 'info' : result.run?.status === 'AWAITING_VALIDATION' ? 'success' : 'success'}
+          title={result.reserved ? 'Emplacement réservé — aucune inférence effectuée' : result.run?.status === 'AWAITING_VALIDATION' ? '✅ Plan généré — validation requise' : 'Exécution lancée'}
           action={<Button variant="ghost" size="sm" icon={X} onClick={() => setResult(null)}>Fermer</Button>}>
-          {result.detail || `Exécution #${result.run?.id} créée avec le statut ${RUN_STATUS[result.run?.status]?.label || result.run?.status}.`}
+          {result.detail
+            ? result.detail
+            : result.run?.status === 'AWAITING_VALIDATION'
+              ? `Plan à valider dans l'onglet Validation · Exécution #${result.run?.id}.`
+              : `Exécution #${result.run?.id} · ${RUN_STATUS[result.run?.status]?.label || result.run?.status}.`
+          }
         </Alert>
       )}
 
@@ -969,7 +990,9 @@ function AgentsTab({ project, onChanged, canEdit }) {
                   <h3 className="text-[14.5px] font-semibold text-slate-900">{a.name}</h3>
                 </div>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  <Badge className="badge-purple">Emplacement réservé</Badge>
+                  {a.is_available && runtimeEnabled
+                    ? <Badge className="badge-success">Actif</Badge>
+                    : <Badge className="badge-purple">Réservé</Badge>}
                   {a.requires_human_validation && <Badge className="badge-warning">Validation humaine</Badge>}
                 </div>
               </div>
@@ -993,7 +1016,7 @@ function AgentsTab({ project, onChanged, canEdit }) {
             <div className="mt-auto flex items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">
               <span className="text-[11.5px] text-slate-500">{a.total_runs} exécution(s)</span>
               {canEdit ? (
-                <Button size="sm" icon={PlayCircle} loading={launching === a.key} onClick={() => launch(a)}>
+                <Button size="sm" icon={PlayCircle} loading={launching === a.key} onClick={() => handleLaunch(a)}>
                   Lancer
                 </Button>
               ) : (
@@ -1004,6 +1027,16 @@ function AgentsTab({ project, onChanged, canEdit }) {
         ))}
         {!agents.length && <Card className="p-6 xl:col-span-3"><EmptyState icon={Bot} title="Aucun agent défini" /></Card>}
       </div>
+
+      {scopingModal && (
+        <ScopingLaunchModal
+          project={project}
+          onClose={() => setScopingModal(false)}
+          onLaunch={(agent, input) => { setScopingModal(false); launch(agent, input) }}
+          agents={agents}
+          launching={launching}
+        />
+      )}
 
       {/* -------------------------- Historique d’exécutions -------------------------- */}
       <Card>
@@ -1051,6 +1084,88 @@ function AgentsTab({ project, onChanged, canEdit }) {
         )}
       </Card>
     </div>
+  )
+}
+
+/* =========================================================================
+ * ScopingLaunchModal — Formulaire de lancement de l’Agent 1
+ * ========================================================================= */
+function ScopingLaunchModal({ project, onClose, onLaunch, agents, launching }) {
+  const agent = (agents || []).find((a) => a.key === 'SCOPING')
+  const [brief, setBrief] = useState(project.brief || '')
+  const wordCount = brief.trim().split(/\s+/).filter(Boolean).length
+
+  if (!agent) return null
+
+  return (
+    <Modal open onClose={onClose} title="Lancer le cadrage" subtitle={project.name}
+      size="lg" icon={Wand2}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Annuler</Button>
+          <Button icon={PlayCircle} loading={launching === 'SCOPING'}
+            onClick={() => onLaunch(agent, { brief, project_reference: project.reference })}
+            disabled={wordCount < 5}>
+            Lancer l’Agent 1
+          </Button>
+        </>
+      }>
+      <div className="space-y-4">
+        <Alert tone="info" title="Agent 1 — Cadrage &amp; décomposition">
+          L’agent analyse le brief, détecte les domaines techniques, génère les lots, les tâches,
+          les sprints, les estimations, les risques et les hypothèses. La proposition doit
+          être validée avant toute écriture.
+        </Alert>
+
+        <Textarea
+          label={`Brief du projet (${wordCount} mot${wordCount !== 1 ? 's' : ''})`}
+          value={brief}
+          onChange={(e) => setBrief(e.target.value)}
+          rows={8}
+          placeholder="Décrivez le projet en langage naturel : objectifs, périmètre, contraintes, équipe, échéances…"
+        />
+        {wordCount > 0 && wordCount < 5 && (
+          <p className="text-[11.5px] text-amber-600">
+            Saisissez au moins 5 mots pour que le cadrage soit significatif.
+          </p>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+          <div>
+            <p className="text-[10.5px] uppercase tracking-wide text-slate-400">Méthodologie</p>
+            <p className="mt-0.5 text-[12.5px] font-semibold text-slate-800">{project.methodology}</p>
+          </div>
+          <div>
+            <p className="text-[10.5px] uppercase tracking-wide text-slate-400">Budget</p>
+            <p className="mt-0.5 text-[12.5px] font-semibold text-slate-800">
+              {project.budget ? `${Number(project.budget).toLocaleString('fr-FR')} €` : 'Non renseigné'}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10.5px] uppercase tracking-wide text-slate-400">Échéance cible</p>
+            <p className="mt-0.5 text-[12.5px] font-semibold text-slate-800">
+              {project.target_end_date || 'Non renseignée'}
+            </p>
+          </div>
+        </div>
+
+        {(project.members_detail || []).length > 0 && (
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Équipe prise en compte ({(project.members_detail || []).length} membre(s))
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {(project.members_detail || []).map((m) => (
+                <div key={m.id} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2 py-1">
+                  <Avatar name={m.full_name} color={m.avatar_color} size={18} />
+                  <span className="text-[11.5px] font-medium text-slate-700">{m.full_name.split(' ')[0]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
   )
 }
 
@@ -1139,27 +1254,27 @@ function ValidationTab({ project, onChanged, canEdit }) {
 }
 
 function ValidationModal({ proposal, onClose, onDone, canEdit = true }) {
-  const [decision, setDecision] = useState(null)
+  const [savingDecision, setSavingDecision] = useState(null) // 'APPROVE' | 'REJECT' | null
   const [createTasks, setCreateTasks] = useState(true)
   const [pushExternal, setPushExternal] = useState(false)
   const [reason, setReason] = useState('')
   const [assignments, setAssignments] = useState(
     Object.fromEntries((proposal.assignments || []).map((a) => [String(a.id), a.accepted !== false])),
   )
-  const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
-  const submit = async () => {
-    if (!decision) return
-    setSaving(true); setErr('')
+  // Prend la décision en paramètre pour éviter le problème de batching React
+  const submit = async (dec) => {
+    if (!dec) return
+    setSavingDecision(dec); setErr('')
     try {
       await api.post(`/proposals/${proposal.id}/validate/`, {
-        decision, reason, create_tasks: createTasks, push_to_external: pushExternal,
+        decision: dec, reason, create_tasks: createTasks, push_to_external: pushExternal,
         assignments: Object.fromEntries(Object.entries(assignments).map(([k, v]) => [k, v])),
       })
       onDone()
     } catch (e) { setErr(errorMessage(e)) }
-    finally { setSaving(false) }
+    finally { setSavingDecision(null) }
   }
 
   return (
@@ -1170,10 +1285,10 @@ function ValidationModal({ proposal, onClose, onDone, canEdit = true }) {
           ? <Button variant="secondary" onClick={onClose}>Fermer</Button>
           : <>
               <Button variant="ghost" onClick={onClose}>Annuler</Button>
-              <Button variant="danger" icon={XCircle} loading={saving && decision === 'REJECT'}
-                onClick={() => { setDecision('REJECT'); submit() }}>Rejeter</Button>
-              <Button variant="success" icon={Check} loading={saving && decision === 'APPROVE'}
-                onClick={() => { setDecision('APPROVE'); submit() }}>Approuver le plan</Button>
+              <Button variant="danger" icon={XCircle} loading={savingDecision === 'REJECT'}
+                onClick={() => submit('REJECT')}>Rejeter</Button>
+              <Button variant="success" icon={Check} loading={savingDecision === 'APPROVE'}
+                onClick={() => submit('APPROVE')}>Approuver le plan</Button>
             </>
       }>
       {!canEdit && proposal.status === 'PENDING' && (
@@ -1222,6 +1337,22 @@ function ValidationModal({ proposal, onClose, onDone, canEdit = true }) {
             ))}
           </div>
         </div>
+
+        {(proposal.sprints_payload || []).length > 0 && (
+          <div>
+            <p className="label">Sprints proposés ({(proposal.sprints_payload || []).length})</p>
+            <div className="space-y-1.5">
+              {(proposal.sprints_payload || []).map((s, i) => (
+                <div key={i} className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">
+                  <GitBranch size={14} className="shrink-0 text-brand-400" />
+                  <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-slate-800">{s.name}</span>
+                  {s.goal && <span className="max-w-[200px] truncate text-[11px] text-slate-500">{s.goal}</span>}
+                  <span className="shrink-0 text-[11.5px] text-slate-500">{hours(s.capacity_hours)} h</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div>
           <p className="label">Tâches proposées ({proposal.tasks_count})</p>
