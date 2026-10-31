@@ -1,8 +1,8 @@
 # Contrat des agents & branchement du runtime
 
-Ce document décrit la frontière entre la plateforme Cadria et le runtime d'agents
-multi-agents. **Aucun agent n'est implémenté dans ce dépôt** : la plateforme définit
-le contrat, orchestre, journalise et expose les résultats.
+Ce document décrit le contrat et l'implémentation du runtime d'agents multi-agents.
+Les moteurs sont embarqués dans `orchestration/engines.py` et peuvent être exécutés
+localement ou exposés en HTTP par `orchestration/runtime_server.py`.
 
 ---
 
@@ -13,20 +13,23 @@ le contrat, orchestre, journalise et expose les résultats.
 | Définitions d'agents (`AgentDefinition`) | ✅ En base, avec contrat d'entrée/sortie |
 | Exécutions (`AgentRun`) | ✅ Créées, statuts, journalisation, audit |
 | Propositions & validation humaine (`Proposal`) | ✅ Complètement fonctionnel |
-| Suggestions d'assignation (`AssignmentSuggestion`) | ✅ Modèle + endpoints |
-| **Inférence des agents** | ⛔ **Emplacement réservé** |
-| **Écriture Jira/Trello** | ⛔ **Emplacement réservé** |
+| Suggestions d'assignation (`AssignmentSuggestion`) | ✅ Modèle, moteur et endpoints |
+| **Inférence des agents** | ✅ **Moteurs déterministes implémentés** |
+| **Écriture Jira/Trello** | ⚠️ Préparée (`dry_run`), connecteur authentifié requis |
 
-Quand un agent est lancé alors que le runtime n'est pas branché :
+Modes disponibles (`AGENT_RUNTIME_MODE`) :
 
-1. une `AgentRun` est créée avec le statut `SKIPPED` et l'étape
-   *« En attente du runtime agent »* ;
+- `LOCAL` : exécution dans le processus Django via `engines.execute()` ;
+- `HTTP` : appel `POST {endpoint}/run` au service `runtime_server` (sans dépendance
+  externe, bibliothèque standard uniquement).
+
+Quand le runtime est désactivé (`AGENT_RUNTIME_ENABLED=False`) ou qu'un agent reste
+au statut `RESERVED`, le comportement d'emplacement réservé est conservé :
+
+1. une `AgentRun` est créée avec le statut `SKIPPED` ;
 2. `output_payload` contient `{ "_reserved": true, "_contract": <schéma attendu> }` ;
 3. une entrée d'audit `AGENT_RUN` est écrite avec un `correlation_id` ;
-4. une notification est envoyée à l'utilisateur ;
-5. `AgentDefinition.total_runs` et `last_run_at` sont mis à jour.
-
-**Rien n'est simulé** : aucun faux résultat, aucune tâche inventée.
+4. une notification est envoyée à l'utilisateur.
 
 ---
 
@@ -170,76 +173,51 @@ Surveille en continu la santé du projet.
 
 ---
 
-## Procédure de branchement
+## Mise en marche
 
-### 1. Implémenter `dispatch()`
-
-`backend/orchestration/services.py` contient la fonction à remplir :
-
-```python
-def dispatch(run) -> AgentDispatchResult:
-    """
-    Envoie une exécution au runtime de l'agent et met à jour `run`.
-    """
-    raise NotImplementedError(...)
-```
-
-Le runtime doit :
-
-1. lire `run.agent.key` et `run.input_payload` ;
-2. appeler le service d'inférence (HTTP, file Celery, ou exécution locale) ;
-3. mettre à jour `run` :
-
-```python
-run.status = AgentRun.Status.SUCCEEDED          # ou FAILED / AWAITING_VALIDATION
-run.step = "Découpage terminé"
-run.output_payload = {...}                      # conforme au schéma de sortie
-run.tokens_in, run.tokens_out = 1200, 3400
-run.latency_ms = 1840
-run.started_at = started
-run.finished_at = timezone.now()
-run.save()
-```
-
-4. pour l'Agent 1, créer une `Proposal` liée (`Proposal.objects.create(run=run, …)`)
-   au statut `PENDING` — elle apparaîtra dans l'onglet **Validation** ;
-5. pour l'Agent 3, créer des `RiskAlert` et des `Notification` ;
-6. écrire une entrée d'audit avec `agent_key` et `correlation_id`.
-
-Des helpers sont déjà fournis :
-
-```python
-from orchestration.services import (
-    build_scoping_payload, build_ops_payload, build_risk_payload,
-)
-```
-
-### 2. Renseigner les endpoints
-
-```python
-AgentDefinition.objects.filter(key="SCOPING").update(
-    runtime_endpoint="https://agents.local/scoping",
-    state=AgentDefinition.State.BETA,
-)
-```
-
-États disponibles : `RESERVED` (défaut) · `BETA` · `ENABLED` · `DISABLED`.
-`is_available` est vrai pour `ENABLED` et `BETA`.
-
-### 3. Activer le runtime
+### 1. Mode local (par défaut)
 
 ```bash
-export AGENT_RUNTIME_ENABLED=True
-export SCOPING_AGENT_URL=https://agents.local/scoping
-export OPS_AGENT_URL=https://agents.local/ops
-export RISK_AGENT_URL=https://agents.local/risk
-export ORCHESTRATOR=LangGraph
+cd backend
+python manage.py migrate
+python manage.py seed_demo
+python manage.py enable_agents          # base existante : passe les agents en ENABLED
+python manage.py runserver 0.0.0.0:8000
 ```
 
-Dès que `AGENT_RUNTIME_ENABLED=True` **et** que l'agent est disponible,
-`POST /api/agents/runs/start/` appelle `dispatch()` au lieu de créer une exécution
-réservée. Si `dispatch()` lève `NotImplementedError`, l'exécution retombe proprement
-en `SKIPPED` avec le message d'erreur.
+`AGENT_RUNTIME_ENABLED` vaut `True` par défaut et `AGENT_RUNTIME_MODE=LOCAL`.
+`POST /api/agents/runs/start/` exécute alors les moteurs embarqués. Le `seed_demo`
+passe les trois agents au statut `ENABLED`.
+
+### 2. Mode HTTP (service autonome)
+
+```bash
+cd backend
+python -m orchestration.runtime_server     # http://127.0.0.1:8100
+```
+
+Endpoints : `/scoping/run`, `/ops/run`, `/risk/run`, `/health`.
+
+```bash
+export AGENT_RUNTIME_MODE=HTTP
+export SCOPING_AGENT_URL=http://127.0.0.1:8100/scoping
+export OPS_AGENT_URL=http://127.0.0.1:8100/ops
+export RISK_AGENT_URL=http://127.0.0.1:8100/risk
+```
+
+`dispatch()` construit la charge utile, choisit HTTP ou local, puis persiste le
+résultat de la même manière dans les deux modes.
+
+### 3. Effets de bord garantis
+
+1. `AgentRun` passe par `RUNNING` puis `AWAITING_VALIDATION`, `SUCCEEDED` ou `FAILED` ;
+2. l'Agent 1 crée une `Proposal` `PENDING` visible dans l'onglet **Validation** ;
+3. l'Agent 2 crée/met à jour les `AssignmentSuggestion` (compétences + charge) ;
+4. l'Agent 3 crée/met à jour les `RiskAlert` et recalcule `Project.risk_score` ;
+5. une entrée d'audit `AGENT_RUN` et une notification sont écrites à chaque exécution.
+
+Si le runtime HTTP est indisponible ou qu'aucun endpoint n'est configuré,
+l'exécution échoue proprement (`FAILED` ou `SKIPPED`) sans casser la requête.
 
 ---
 
@@ -251,7 +229,7 @@ sans une validation explicite** via `POST /api/proposals/{id}/validate/` :
 - l'endpoint matérialise les tâches dans Cadria ;
 - applique les assignations que le chef de projet a acceptées ;
 - si `push_to_external: true`, **journalise l'intention** (`AGENT_WRITE`) —
-  l'appel effectif à l'API externe reste à implémenter dans l'Agent 2 ;
+  l'appel effectif nécessite un connecteur Jira/Trello authentifié ;
 - écrit une notification et une entrée d'audit `VALIDATE` ou `REJECT`.
 
 ---
