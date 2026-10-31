@@ -12,6 +12,7 @@ Comptes créés (mot de passe commun : Cadria@2026)
 import random
 from datetime import date, timedelta
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
@@ -459,7 +460,7 @@ class Command(BaseCommand):
         users = self._users(skills)
         self.stdout.write("Création des équipes…")
         self._teams(users)
-        self.stdout.write("Création des agents (emplacements réservés)…")
+        self.stdout.write("Création des agents du runtime…")
         agents = self._agents()
         self.stdout.write("Création des projets…")
         projects = self._projects(users)
@@ -550,8 +551,14 @@ class Command(BaseCommand):
             caps = cfg.pop("capabilities")
             inp = cfg.pop("input_schema_hint")
             outp = cfg.pop("output_schema_hint")
+            state = (AgentDefinition.State.ENABLED
+                     if settings.AGENT_RUNTIME["ENABLED"]
+                     else AgentDefinition.State.RESERVED)
+            endpoint = settings.AGENT_RUNTIME.get(f"{cfg['key']}_ENDPOINT", "")
             agent, _ = AgentDefinition.objects.update_or_create(
-                key=cfg["key"], defaults={**cfg, "capabilities": caps,
+                key=cfg["key"], defaults={**cfg, "state": state,
+                                          "runtime_endpoint": endpoint,
+                                          "capabilities": caps,
                                           "input_schema_hint": inp, "output_schema_hint": outp},
             )
             out[agent.key] = agent
@@ -868,7 +875,7 @@ class Command(BaseCommand):
             category=Notification.Category.SYSTEM, level=Notification.Level.SUCCESS,
             title="Cadria 1.0 est disponible 🎉",
             message="Nouvelle interface, tableau de bord risques et centre de notifications. "
-                    "Les agents restent en emplacement réservé jusqu'au branchement du runtime.",
+                    "Le runtime d’agents est opérationnel en mode local ou HTTP.",
             link="/app/dashboard", created_at=now - timedelta(days=2),
             metadata={"seed": True},
         )
@@ -921,7 +928,7 @@ class Command(BaseCommand):
                     "board_key": project.external_key,
                     "workspace": "Cadria",
                     "status": Integration.Status.DISCONNECTED,
-                    "last_error": "Agent 2 (intégration) non branché." if i % 2 == 0 else "",
+                    "last_error": "Connecteur externe non authentifié (simulation dry-run)." if i % 2 == 0 else "",
                     "auto_sync": True,
                     "sync_interval_minutes": 60,
                 },

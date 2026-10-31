@@ -135,11 +135,13 @@ SIMPLE_JWT = {
     "USER_ID_CLAIM": "user_id",
 }
 
-# Agents are plugged in later — these toggles drive the "reserved slot" UI.
+# Runtime multi-agents : moteurs locaux par défaut, service HTTP optionnel.
 AGENT_RUNTIME = {
-    "ENABLED": os.environ.get("AGENT_RUNTIME_ENABLED", "False") == "True",
+    "ENABLED": os.environ.get("AGENT_RUNTIME_ENABLED", "True") == "True",
+    "MODE": os.environ.get("AGENT_RUNTIME_MODE", "LOCAL").upper(),
     "SCOPING_ENDPOINT": os.environ.get("SCOPING_AGENT_URL", ""),
     "OPS_ENDPOINT": os.environ.get("OPS_AGENT_URL", ""),
     "RISK_ENDPOINT": os.environ.get("RISK_AGENT_URL", ""),
-    "ORCHESTRATOR": os.environ.get("ORCHESTRATOR", "LangGraph"),
+    "ORCHESTRATOR": os.environ.get("ORCHESTRATOR", "CadriaRuntime"),
+    "HTTP_TIMEOUT": int(os.environ.get("AGENT_RUNTIME_TIMEOUT", "300")),
 }
