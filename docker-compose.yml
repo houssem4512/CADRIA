@@ -5,8 +5,9 @@ services:
     environment:
       DJANGO_DEBUG: "True"
       DJANGO_SECRET_KEY: "change-me-in-production"
-      AGENT_RUNTIME_ENABLED: "False"
-      ORCHESTRATOR: "LangGraph"
+      AGENT_RUNTIME_ENABLED: "True"
+      AGENT_RUNTIME_MODE: "LOCAL"
+      ORCHESTRATOR: "CadriaRuntime"
     ports:
       - "8000:8000"
     volumes:

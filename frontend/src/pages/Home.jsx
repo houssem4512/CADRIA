@@ -242,12 +242,11 @@ export default function Home() {
                   </span>
                   <div>
                     <p className="text-[13.5px] font-semibold text-violet-900">
-                      Emplacements réservés — prêts à brancher
+                      Runtime d’agents opérationnel — local ou HTTP
                     </p>
                     <p className="mt-1 text-[12.5px] leading-relaxed text-violet-800/80">
-                      Le contrat d’entrée/sortie de chaque agent est figé côté plateforme. Les lancements
-                      sont journalisés en statut « réservé » jusqu’au branchement du runtime : aucune
-                      inférence n’est simulée.
+                      Les moteurs des trois agents sont exécutables immédiatement. Chaque lancement est
+                      journalisé, l’Agent 1 produit un plan à valider et l’Agent 3 matérialise ses alertes.
                     </p>
                   </div>
                 </div>

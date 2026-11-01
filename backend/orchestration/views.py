@@ -1,11 +1,11 @@
 """
 Vues d'orchestration.
 
-⚠️ Aucun agent n'est exécuté ici. Le runtime (LangGraph / CrewAI / AutoGen et les
-trois agents) n'est pas branché : les lancements créent une exécution
-`SKIPPED` qui matérialise l'emplacement réservé et journalise l'intention.
-Le contrat d'entrée/sortie est déjà figé — brancher un agent revient à
-implémenter `services/agent_runtime.py::dispatch`.
+Les lancements passent par `services.dispatch()` dès que le runtime est activé
+(`AGENT_RUNTIME_ENABLED=True`) et que l'agent est disponible. Le mode `LOCAL`
+exécute les moteurs embarqués, le mode `HTTP` appelle le service autonome.
+Les agents encore au statut `RESERVED` conservent le comportement d'emplacement
+réservé : exécution `SKIPPED`, audit et notification, sans inférence.
 """
 import uuid
 from datetime import timedelta
@@ -21,7 +21,7 @@ from rest_framework.viewsets import ModelViewSet
 from accounts.models import User
 from audit.models import AuditLog
 from notifications.models import Notification
-from projects.models import Project, Task, WorkPackage
+from projects.models import Project, Sprint, Task, WorkPackage
 
 
 def _can_pilot(user, project):
@@ -132,7 +132,7 @@ class RunAgentView(views.APIView):
         except AgentDefinition.DoesNotExist:
             return Response({"detail": "Agent inconnu."}, status=status.HTTP_404_NOT_FOUND)
 
-        if not agent.is_available and not settings.AGENT_RUNTIME["ENABLED"]:
+        if not agent.is_available or not settings.AGENT_RUNTIME["ENABLED"]:
             run = _reserve_run(request, project, agent, payload)
             return Response(
                 {
@@ -197,8 +197,8 @@ def _reserve_run(request, project, agent, payload):
 
 
 def _dispatch(request, project, agent, payload):
-    """Envoi au runtime externe — à implémenter quand les agents existeront."""
-    from .services import dispatch  # noqa: F401  (contrat à implémenter)
+    """Confie l'exécution au runtime (moteurs locaux ou service HTTP)."""
+    from .services import dispatch
 
     run = AgentRun.objects.create(
         project=project, agent=agent, triggered_by=request.user,
@@ -206,10 +206,16 @@ def _dispatch(request, project, agent, payload):
     )
     try:
         dispatch(run)
-    except NotImplementedError:
+    except NotImplementedError as exc:
         run.status = AgentRun.Status.SKIPPED
-        run.step = "Runtime non implémenté"
-        run.error_message = "dispatch() n'est pas implémenté — emplacement réservé."
+        run.step = "Runtime indisponible"
+        run.error_message = str(exc)
+        run.finished_at = timezone.now()
+        run.save(update_fields=["status", "step", "error_message", "finished_at"])
+    except Exception as exc:  # noqa: BLE001 — une panne d'agent ne casse pas la requête
+        run.status = AgentRun.Status.FAILED
+        run.step = "Échec du runtime agent"
+        run.error_message = f"{type(exc).__name__}: {exc}"[:2000]
         run.finished_at = timezone.now()
         run.save(update_fields=["status", "step", "error_message", "finished_at"])
     return run
@@ -288,7 +294,7 @@ class ValidateProposalView(views.APIView):
 
 
 def _materialise(request, proposal):
-    """Transforme les tâches proposées en vraies tâches du projet."""
+    """Transforme les tâches et sprints proposés en vraies entités du projet."""
     project = proposal.project
     created = 0
     wp_by_name = {}
@@ -307,12 +313,26 @@ def _materialise(request, proposal):
         )
         wp_by_name[wp.name] = wp
 
+    # ── 2. Sprints proposés → Sprint DB objects ───────────────────────────────
+    for idx, sp in enumerate(proposal.sprints_payload or []):
+        Sprint.objects.get_or_create(
+            project=project,
+            name=sp.get("name", f"Sprint {idx + 1}"),
+            defaults={
+                "goal": sp.get("goal", ""),
+                "order": idx,
+                "capacity_hours": sp.get("capacity_hours", 0) or 0,
+                "status": Sprint.Status.PLANNED,
+            },
+        )
+
     sprint_by_name = {s.name: s for s in project.sprints.all()}
 
     accepted_by_task = {
         a.task_ref: a for a in proposal.assignments.filter(accepted=True).select_related("candidate")
     }
 
+    # ── 3. Tâches → Task DB objects ───────────────────────────────────────────
     for idx, t in enumerate(proposal.tasks_payload or []):
         title = t.get("title") or f"Tâche {idx + 1}"
         if Task.objects.filter(project=project, title=title).exists():
@@ -417,6 +437,7 @@ class AgentMonitorView(views.APIView):
 
         return Response({
             "enabled": settings.AGENT_RUNTIME["ENABLED"],
+            "mode": settings.AGENT_RUNTIME.get("MODE", "LOCAL"),
             "orchestrator": settings.AGENT_RUNTIME["ORCHESTRATOR"],
             "window_days": days,
             "totals": {

@@ -1,0 +1,25 @@
+CADRIA — Trace Git pour l'évaluation (généré le 2026-10-31)
+Commande : git log --pretty=format:"%h - %an - %ad - %s" --date=short --all
+--------------------------------------------------------------------------------
+9bc8bab - Mohamedali - 2026-10-31 - test(orchestration): tests de regression pour materialisation des sprints et criteres par type
+c352e61 - Mohamedali - 2026-10-31 - feat(frontend): modale de cadrage scoping, correction validation et statut actif du runtime
+e1d8724 - Mohamedali - 2026-10-31 - feat(orchestration): activation runtime local, creation des sprints et optimisation requetes
+3febc49 - Mohamedali - 2026-10-31 - feat(agents): moteurs scoping ops risk et serveur runtime autonome
+e0c510a - amen - 2026-10-17 - feat(ops): orchestration LangGraph, outils avec schema et trace ordonnee
+120ef17 - amen - 2026-10-16 - feat(ops): client Jira (epics, sprints, tickets, assignation) + tests avec faux Jira et helper de seed
+561de44 - amen - 2026-10-16 - feat(ops): assignation des cartes Trello + tests avec faux Trello (idempotence, validation humaine)
+de22525 - amen - 2026-10-16 - fix(ops): horizon de capacite, cout de charge convexe, anti-doublon, metriques avant/apres
+7053ab6 - amen - 2026-10-15 - feat(ops): matching competences (embeddings) + affectation hongroise + indice d'equilibrage
+4703550 - amen - 2026-10-15 - feat(ops): service OPS idempotent + audit AGENT_WRITE + branchement dispatch
+2b57c23 - amen - 2026-10-15 - feat(ops): interface ProviderClient + client Trello (dry_run, backoff)
+3b07703 - Mohamedali - 2026-10-14 - Merge branch 'feat/agents-runtime' into main
+3d04fdd - Mohamedali - 2026-10-14 - docs: ajoute STRATEGIE_GIT_CADRIA.pdf
+af2f61d - Mohamedali - 2026-10-14 - test(agents): rend AgentTests independant du runtime
+6000b7f - Mohamedali - 2026-10-14 - fix(agents): condition reserved ET au lieu de OU
+26f20f9 - Mohamedali - 2026-10-14 - feat(agents): dispatch runtime HTTP + Proposal + audit/notif
+ce182cb - Houssem Belhabib - 2026-10-10 - Initial commit
+--------------------------------------------------------------------------------
+Commits par auteur (git shortlog -sne --all) :
+     9	Mohamedali <daliabed7@gmail.com>
+     7	amen <amenallahabidi4@gmail.com>
+     1	Houssem Belhabib <houssembelhabib04@gmail.com>

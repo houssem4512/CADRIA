@@ -21,8 +21,9 @@
               └─────────────┬─────────────┘
                             │
               ┌─────────────▼─────────────┐
-              │  Runtime multi-agents     │  ⚠️ emplacement réservé
-              │  dispatch() à implémenter │
+              │  Runtime multi-agents     │
+              │  engines.py (LOCAL)       │
+              │  runtime_server.py (HTTP) │
               └───────────────────────────┘
 ```
 
@@ -102,18 +103,20 @@ porte un `correlation_id` propagé jusqu'aux écritures qu'elle déclenche.
 
 ## Décisions techniques
 
-### 1. Pourquoi les agents sont des « emplacements réservés »
+### 1. Runtime d'agents : moteurs déterministes, exécution locale ou HTTP
 
 Le cahier des charges demande une architecture multi-agents avec modèles fine-tunés,
-RAG et intégrations Jira/Trello. Implémenter une **fausse** génération de plan
-aurait produit une démo trompeuse : des tâches inventées, des scores de risque
-fabriqués, des assignations arbitraires.
+RAG et intégrations Jira/Trello. Les moteurs livrés sont **déterministes** : ils
+dérivent leurs sorties du brief, des tâches et des commentaires réels, sans inventer
+de données. Ils sont isolés dans `orchestration/engines.py` et ne dépendent ni de
+Django ni du réseau.
 
-La plateforme définit donc le **contrat** (schémas d'entrée/sortie stockés en base,
-visibles dans l'UI), orchestre réellement (création d'exécutions, statuts,
-journalisation, audit, notifications), et matérialise réellement les plans une fois
-validés — mais ne simule aucune inférence. Brancher un agent revient à remplir une
-seule fonction.
+`services.dispatch()` choisit le mode `LOCAL` (exécution en process) ou `HTTP`
+(service `runtime_server`), puis applique les mêmes effets de bord : `Proposal`,
+`AssignmentSuggestion`, `RiskAlert`, audit et notifications. Le contrat d'entrée/sortie
+reste identique, ce qui permet de remplacer les moteurs par des modèles fine-tunés
+sans toucher à la plateforme. Les écritures Jira/Trello restent derrière la validation
+humaine et un connecteur authentifié.
 
 ### 2. Login par e-mail plutôt que par nom d'utilisateur
 

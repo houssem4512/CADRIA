@@ -52,6 +52,7 @@ pip install -r requirements.txt
 
 python3 manage.py migrate
 python3 manage.py seed_demo          # jeu de données de démonstration
+python3 manage.py enable_agents      # active les 3 agents (utile sur une base existante)
 python3 manage.py runserver 0.0.0.0:8000
 ```
 
@@ -119,29 +120,43 @@ AutoGen), avec une **étape de validation humaine** avant toute écriture Jira/T
 | **Agent 2 — Ops** | Intégration Jira/Trello & assignation initiale | SLM tool-calling + sentence-transformers (all-MiniLM-L6-v2) |
 | **Agent 3 — Risk** | Analyse & suivi des risques | XGBoost/LightGBM + DistilBERT/CamemBERT |
 
-### ⚠️ État : emplacements réservés
+### ✅ État : runtime opérationnel
 
-**Aucun agent n'est implémenté.** Le contrat d'entrée/sortie est figé côté plateforme ;
-les lancements créent une exécution au statut `SKIPPED` (« réservé »), journalisée dans
-l'audit, **sans appel de modèle ni écriture externe**. Rien n'est simulé.
+Les trois agents sont implémentés dans `backend/orchestration/engines.py` et exécutables
+immédiatement. Le runtime est activé par défaut :
 
-### Brancher le runtime
+- **Agent 1 — Scoping** : analyse le brief, détecte les domaines (front, API, SSO, data,
+  mobile, DevOps, IA, QA…), produit lots, tâches, sprints, estimations, risques et
+  hypothèses, puis crée une `Proposal` en attente de validation humaine.
+- **Agent 2 — Ops** : calcule les suggestions d'assignation (compétences + charge) et
+  prépare les écritures externes en simulation (`dry_run`). L'écriture Jira/Trello réelle
+  reste soumise à validation et à un connecteur authentifié.
+- **Agent 3 — Risk** : calcule un score de risque, détecte blocages, retards, dérives
+  d'estimation, surcharges et signaux faibles, puis matérialise les `RiskAlert`.
 
-1. Implémenter `backend/orchestration/services.py::dispatch(run)`
-   (appel HTTP au runtime, file Celery, ou exécution locale du modèle).
-2. Renseigner `AgentDefinition.runtime_endpoint` pour chaque agent.
-3. Activer la variable d'environnement :
+Deux modes de déploiement :
+
+| Mode | Description |
+| ---- | ----------- |
+| `LOCAL` (défaut) | Les moteurs sont exécutés dans le processus Django. |
+| `HTTP` | Service autonome via `python -m orchestration.runtime_server`. |
 
 ```bash
+# Mode local
 AGENT_RUNTIME_ENABLED=True
-SCOPING_AGENT_URL=https://agents.local/scoping
-OPS_AGENT_URL=https://agents.local/ops
-RISK_AGENT_URL=https://agents.local/risk
-ORCHESTRATOR=LangGraph
+AGENT_RUNTIME_MODE=LOCAL
+
+# Mode HTTP (optionnel)
+python -m orchestration.runtime_server       # :8100
+AGENT_RUNTIME_MODE=HTTP
+SCOPING_AGENT_URL=http://127.0.0.1:8100/scoping
+OPS_AGENT_URL=http://127.0.0.1:8100/ops
+RISK_AGENT_URL=http://127.0.0.1:8100/risk
 ```
 
 Les helpers `build_scoping_payload()`, `build_ops_payload()` et `build_risk_payload()`
-construisent déjà les charges utiles conformes au contrat.
+construisent les charges utiles conformes au contrat. Les sorties sont persistées dans
+`AgentRun.output_payload`, auditées avec un `correlation_id` et notifiées.
 
 ### Validation humaine
 
@@ -186,8 +201,8 @@ cd backend
 python3 manage.py test --parallel 1
 ```
 
-**58 tests d'intégration** couvrant authentification, autorisations, projets, tâches,
-kanban, agents (emplacements réservés), validation humaine, notifications, équipes,
+**73 tests d'intégration** couvrant authentification, autorisations, projets, tâches,
+kanban, moteurs des agents, orchestration, validation humaine, notifications, équipes,
 audit et analytics. Ils exercent réellement les vues et sérialiseurs.
 
 ---

@@ -132,10 +132,10 @@ export default function AppLayout({ mode = 'client' }) {
               <div className="rounded-xl bg-gradient-to-br from-brand-50 to-sky-50 p-3.5">
                 <div className="flex items-center gap-2 text-brand-800">
                   <Sparkles size={15} />
-                  <span className="text-[12.5px] font-semibold">Agents en attente</span>
+                  <span className="text-[12.5px] font-semibold">Copilote multi-agents</span>
                 </div>
                 <p className="mt-1.5 text-[11.5px] leading-relaxed text-slate-600">
-                  Les 3 agents sont réservés. Branchez le runtime pour activer le copilote.
+                  Lancez le cadrage, l’intégration et l’analyse de risques depuis l’espace Agents.
                 </p>
                 <Link to={isAdmin ? '/admin/agents' : '/app/agents'}
                   className="mt-2.5 inline-flex text-[11.5px] font-semibold text-brand-700 hover:underline">
