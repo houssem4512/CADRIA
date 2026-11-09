@@ -126,23 +126,39 @@ def _load_model():
 
 
 def predict(features: list[float]) -> float:
-    """Predict the risk score (0-1) for a single feature vector."""
-    model = _load_model()
-    if model is None:
-        # Fallback: rule-based score
-        return _rule_based_score(features)
-    X = np.array([features])
-    proba = model.predict_proba(X)
-    return float(proba[0][1]) if proba.shape[1] > 1 else float(proba[0][0])
+    """Predict the risk score (0-1) for a single feature vector.
+
+    Always uses rule-based scoring — the XGBoost model trained on synthetic
+    data gives unrealistic scores for fresh projects (e.g., 99/100 for all
+    tasks when there's 1 comment with weak signals). The rule-based scorer
+    has better-calibrated weights for real-world use.
+    """
+    return _rule_based_score(features)
 
 
 def _rule_based_score(features: list[float]) -> float:
-    """Heuristic risk score when XGBoost is unavailable."""
+    """Heuristic risk score with calibrated weights.
+
+    Weight distribution (max 1.0):
+      - Base risk:              0.10  (every task has some inherent risk)
+      - Overdue days:           0.30  (overdue_days / 10, capped at 1)
+      - Blocked:                0.25  (blocked tasks are high risk)
+      - Effort variance:        0.20  (only for started tasks, |est-spent|/est)
+      - Weak signal ratio:      0.10  (capped low so 1 comment doesn't dominate)
+      - High priority:          0.05  (slight boost for HIGH/HIGHEST)
+    """
     overdue = features[4] if len(features) > 4 else 0
     is_blocked = features[5] if len(features) > 5 else 0
     effort_var = features[10] if len(features) > 10 else 0
     weak_ratio = features[19] if len(features) > 19 else 0
-    score = 0.2 + 0.3 * min(1, overdue / 10) + 0.2 * is_blocked + 0.2 * min(1, effort_var) + 0.1 * weak_ratio
+    priority_high = features[9] if len(features) > 9 else 0
+
+    score = 0.10  # base risk
+    score += 0.30 * min(1, overdue / 10)   # overdue contribution
+    score += 0.25 * is_blocked              # blocked contribution
+    score += 0.20 * min(1, effort_var)      # effort variance (only for started tasks)
+    score += 0.10 * min(1, weak_ratio)      # weak signal (capped)
+    score += 0.05 * priority_high           # priority boost
     return min(1.0, score)
 
 
@@ -187,5 +203,10 @@ def explain(features: list[float], feature_names: list[str] | None = None) -> li
 
 
 def ensure_model_ready() -> bool:
-    """Ensure the model is trained and loadable. Returns True if available."""
-    return _load_model() is not None
+    """Always returns False — we use rule-based scoring for realistic results.
+
+    The XGBoost model trained on synthetic data gives unrealistic scores.
+    Rule-based scoring with calibrated weights is more appropriate for
+    real-world project risk assessment.
+    """
+    return False

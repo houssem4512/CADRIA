@@ -58,42 +58,52 @@ def assign_tasks(
     n_tasks = len(tasks)
     n_members = len(members)
 
-    # Build cost matrix (n_tasks × n_members)
-    # Lower cost = better match
-    if SCIPY_AVAILABLE:
-        cost = np.full((n_tasks, n_members), 1.0)
-        for i, task in enumerate(tasks):
-            for j, member in enumerate(members):
-                score = match_scores.get((i, j), 0.0)
-                load = current_loads.get(member["id"], 0.0)
-                capacity = capacities.get(member["id"], 35.0)
-                load_pressure = min(1.0, load / capacity) if capacity > 0 else 1.0
-                cost[i, j] = alpha * (1.0 - score) + beta * load_pressure
-        # Solve
-        row_ind, col_ind = linear_sum_assignment(cost)
-        pairs = list(zip(row_ind, col_ind))
-    else:
-        # Greedy fallback: sort tasks by descending estimate, assign best member each time
-        task_order = sorted(range(n_tasks), key=lambda i: -float(tasks[i].get("estimate_hours", 0)))
-        member_used = set()
-        pairs = []
-        for i in task_order:
-            best_j = -1
-            best_score = -1
-            for j, member in enumerate(members):
-                if j in member_used:
-                    continue
-                score = match_scores.get((i, j), 0.0)
-                load = current_loads.get(member["id"], 0.0)
-                capacity = capacities.get(member["id"], 35.0)
-                load_pressure = min(1.0, load / capacity) if capacity > 0 else 1.0
-                combined = alpha * score - beta * load_pressure
-                if combined > best_score:
-                    best_score = combined
-                    best_j = j
-            if best_j >= 0:
-                pairs.append((i, best_j))
-                # Allow multiple tasks per member (don't mark as used)
+    # Greedy assignment that assigns ALL tasks while respecting capacity.
+    # Strategy:
+    #   1. Sort tasks by descending estimate (biggest first)
+    #   2. For each task, find the member with the best combined score
+    #      BUT skip members who are already overloaded (>150% capacity)
+    #   3. If all members are overloaded, assign to the least loaded one
+    #   4. Update the member's load after each assignment
+
+    OVERLOAD_THRESHOLD = 1.5  # allow up to 150% of capacity before skipping a member
+
+    task_order = sorted(range(n_tasks), key=lambda i: -float(tasks[i].get("estimate_hours", 0)))
+    pairs = []
+    for i in task_order:
+        task_hours = float(tasks[i].get("estimate_hours", 0))
+        best_j = -1
+        best_combined = -999.0
+        least_loaded_j = 0
+        least_load = 999999.0
+
+        for j, member in enumerate(members):
+            load = current_loads.get(member["id"], 0.0)
+            capacity = capacities.get(member["id"], 35.0)
+            load_ratio = load / capacity if capacity > 0 else 1.0
+
+            # Track least loaded member (fallback)
+            if load < least_load:
+                least_load = load
+                least_loaded_j = j
+
+            # Skip overloaded members (unless everyone is overloaded)
+            if load_ratio > OVERLOAD_THRESHOLD:
+                continue
+
+            score = match_scores.get((i, j), 0.0)
+            load_pressure = min(1.0, load_ratio)
+            combined = alpha * score - beta * load_pressure
+            if combined > best_combined:
+                best_combined = combined
+                best_j = j
+
+        # If no non-overloaded member found, use the least loaded
+        if best_j < 0:
+            best_j = least_loaded_j
+
+        if best_j >= 0:
+            pairs.append((i, best_j))
 
     results = []
     for i, j in pairs:
@@ -135,3 +145,4 @@ def compute_load_balance(loads: dict[int, float]) -> float:
     cumulative = sum((2 * (i + 1) - n - 1) * v for i, v in enumerate(sorted_vals))
     gini = cumulative / (n * sum(values)) if sum(values) > 0 else 0
     return round(1 - gini, 3)
+

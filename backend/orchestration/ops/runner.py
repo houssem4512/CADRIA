@@ -44,17 +44,78 @@ def run(run: AgentRun) -> dict[str, Any]:
     provider = payload.get("provider", "JIRA")
     dry_run = payload.get("dry_run", True)
 
-    try:
-        proposal = Proposal.objects.select_related("project").get(pk=proposal_id)
-    except Proposal.DoesNotExist:
+    project = run.project
+
+    # Find the Proposal to work with:
+    # 1. If proposal_id is provided → use it
+    # 2. Else → find the latest APPROVED proposal for this project
+    # 3. Else → find the latest PENDING proposal
+    # 4. Else → None (work with project tasks directly)
+    proposal = None
+    if proposal_id:
+        try:
+            proposal = Proposal.objects.select_related("project").get(pk=proposal_id)
+        except Proposal.DoesNotExist:
+            run.status = AgentRun.Status.FAILED
+            run.error_message = f"Proposal #{proposal_id} introuvable"
+            run.finished_at = timezone.now()
+            run.save(update_fields=["status", "error_message", "finished_at"])
+            return {"status": "FAILED", "error": run.error_message}
+    else:
+        # Auto-find the latest approved proposal
+        proposal = (
+            Proposal.objects.filter(project=project, status=Proposal.Status.APPROVED)
+            .order_by("-validated_at")
+            .first()
+        )
+        if not proposal:
+            # Fall back to latest pending proposal
+            proposal = (
+                Proposal.objects.filter(project=project, status=Proposal.Status.PENDING)
+                .order_by("-created_at")
+                .first()
+            )
+        if proposal:
+            logger.info("Agent 2 auto-selected Proposal #%s (status=%s)", proposal.id, proposal.status)
+
+    # Build the tasks list — prefer actual DB tasks (post-materialization),
+    # fall back to proposal tasks_payload if no DB tasks exist yet
+    from projects.models import Task as TaskModel
+    db_tasks = list(project.tasks.all().prefetch_related("work_package", "sprint"))
+    if db_tasks:
+        tasks_payload = []
+        for t in db_tasks:
+            # Use getattr for ALL optional fields — the Task model may not
+            # have skills_needed, reference, task_type, or description fields
+            skills_raw = getattr(t, "skills_needed", None)
+            skills_needed = []
+            if skills_raw:
+                try:
+                    skills_needed = json.loads(skills_raw) if isinstance(skills_raw, str) else list(skills_raw)
+                except (json.JSONDecodeError, TypeError):
+                    skills_needed = []
+            tasks_payload.append({
+                "ref": getattr(t, "reference", "") or f"T-{t.id:03d}",
+                "title": t.title,
+                "description": getattr(t, "description", "") or "",
+                "type": getattr(t, "task_type", "FEATURE") or "FEATURE",
+                "priority": t.priority,
+                "estimate_hours": float(getattr(t, "estimate_hours", 0) or 0),
+                "skills": skills_needed,
+                "sprint": t.sprint.name if t.sprint else "",
+            })
+        logger.info("Agent 2 using %d tasks from DB", len(tasks_payload))
+    elif proposal and proposal.tasks_payload:
+        # No DB tasks — use the proposal payload (pre-materialization)
+        tasks_payload = proposal.tasks_payload
+        logger.info("Agent 2 using %d tasks from Proposal #%s payload", len(tasks_payload), proposal.id)
+    else:
         run.status = AgentRun.Status.FAILED
-        run.error_message = f"Proposal #{proposal_id} introuvable"
+        run.error_message = "Aucune tâche trouvée — ni en base ni dans une proposal. Approuvez d'abord un plan Agent 1."
         run.finished_at = timezone.now()
         run.save(update_fields=["status", "error_message", "finished_at"])
         return {"status": "FAILED", "error": run.error_message}
 
-    project = proposal.project
-    tasks_payload = proposal.tasks_payload or []
     members = list(project.members.all().prefetch_related("skills__skill"))
 
     # Build member dicts for the embedder
@@ -81,20 +142,31 @@ def run(run: AgentRun) -> dict[str, Any]:
     balance_index = compute_load_balance(current_loads)
 
     # Persist AssignmentSuggestion records (clear previous suggestions first)
-    proposal.assignments.all().delete()
-    for a in assignments:
-        AssignmentSuggestion.objects.create(
-            proposal=proposal,
-            task_ref=a["task_ref"],
-            task_title=a["task_title"],
-            candidate_id=a["user_id"],
-            match_score=a["score"],
-            rationale=a["rationale"],
-            matched_skills=[],
-            workload_before_hours=a["workload_before_hours"],
-            workload_after_hours=a["workload_after_hours"],
-            accepted=None,  # pending PM review
-        )
+    if proposal:
+        proposal.assignments.all().delete()
+        for a in assignments:
+            AssignmentSuggestion.objects.create(
+                proposal=proposal,
+                task_ref=a["task_ref"],
+                task_title=a.get("task_title", ""),
+                candidate_id=a["user_id"],
+                match_score=a["score"],
+                rationale=a.get("rationale", ""),
+                matched_skills=[],
+                workload_before_hours=a.get("workload_before_hours", 0),
+                workload_after_hours=a.get("workload_after_hours", 0),
+                accepted=None,  # pending PM review
+            )
+
+        # CRITICAL: Reset proposal to PENDING so the "Approuver" button
+        # appears in the UI. Without this, the proposal stays APPROVED
+        # (from Agent 1's validation) and the PM can't validate the
+        # new assignments from Agent 2.
+        if proposal.status != Proposal.Status.PENDING:
+            old_status = proposal.status
+            proposal.status = Proposal.Status.PENDING
+            proposal.save(update_fields=["status"])
+            logger.info("Proposal #%s status reset from %s to PENDING (new assignments from Agent 2)", proposal.id, old_status)
 
     # If not dry_run AND proposal is approved → push to Jira/Trello
     created_external: list[dict] = []
@@ -145,26 +217,111 @@ def run(run: AgentRun) -> dict[str, Any]:
 
 
 def _push_to_external(project, proposal, provider: str) -> tuple[list[dict], int, list[str]]:
-    """Push approved tasks to Jira or Trello. Returns (created, api_calls, errors)."""
+    """Push approved tasks to Jira or Trello.
+    
+    Credentials are read from:
+    1. Integration model (if configured in Connecteurs tab)
+    2. Environment variables as fallback (TRELLO_API_KEY, TRELLO_API_TOKEN, TRELLO_BOARD_ID)
+    """
+    import os
     created: list[dict] = []
     errors: list[str] = []
     api_calls = 0
 
+    # Try to find Integration record, fall back to env vars
+    integration = None
     try:
-        integration = Integration.objects.get(project=project, provider=provider)
-    except Integration.DoesNotExist:
-        errors.append(f"Pas d'intégration {provider} configurée pour ce projet")
-        return created, api_calls, errors
+        integration = Integration.objects.filter(project=project, provider=provider).first()
+    except Exception:
+        pass
 
-    if provider == "JIRA":
+    if provider == "TRELLO":
+        from .trello_client import TrelloClient, TrelloError
+
+        # Get credentials: Integration model first, then env vars
+        if integration:
+            api_key = getattr(integration, "workspace", "") or os.environ.get("TRELLO_API_KEY", "")
+            api_token = getattr(integration, "base_url", "") or os.environ.get("TRELLO_API_TOKEN", "")
+            board_id = getattr(integration, "board_key", "") or os.environ.get("TRELLO_BOARD_ID", "")
+        else:
+            api_key = os.environ.get("TRELLO_API_KEY", "")
+            api_token = os.environ.get("TRELLO_API_TOKEN", "")
+            board_id = os.environ.get("TRELLO_BOARD_ID", "")
+
+        if not api_key or not api_token or not board_id:
+            errors.append(
+                f"Trello credentials missing. Set TRELLO_API_KEY, TRELLO_API_TOKEN, "
+                f"TRELLO_BOARD_ID in backend/.env OR configure in Connecteurs tab "
+                f"(workspace=api_key, base_url=api_token, board_key=board_id)."
+            )
+            return created, api_calls, errors
+
+        client = TrelloClient(api_key=api_key, api_token=api_token)
+
+        # Load tasks from DB or proposal
+        tasks_to_push = []
+        db_tasks = list(project.tasks.all())
+        if db_tasks:
+            for t in db_tasks:
+                tasks_to_push.append({
+                    "title": t.title,
+                    "description": getattr(t, "description", "") or "",
+                    "sprint": t.sprint.name if t.sprint else "Sprint",
+                })
+        else:
+            tasks_to_push = proposal.tasks_payload or []
+
+        # Load sprints
+        sprints_to_push = proposal.sprints_payload or []
+        if not sprints_to_push:
+            # Create sprints from DB
+            for s in project.sprints.all():
+                sprints_to_push.append({"name": s.name})
+
+        # Create a list per sprint
+        sprint_lists: dict[str, str] = {}
+        for sprint in sprints_to_push:
+            sprint_name = sprint.get("name", sprint.get("sprint", "Sprint"))
+            try:
+                result = client.create_list(board_id, sprint_name)
+                sprint_lists[sprint_name] = result["external_id"]
+                created.append(result)
+            except TrelloError as e:
+                errors.append(f"Trello list error: {e}")
+
+        # Create cards per task
+        for task in tasks_to_push:
+            try:
+                sprint_name = task.get("sprint", "")
+                list_id = sprint_lists.get(sprint_name, list(sprint_lists.values())[0] if sprint_lists else "")
+                if not list_id:
+                    errors.append(f"No Trello list for task '{task.get('title', '?')}'")
+                    continue
+                result = client.create_card(list_id, task.get("title", ""), task.get("description", ""))
+                created.append(result)
+                api_calls = client.calls_made
+            except TrelloError as e:
+                errors.append(f"Trello card error: {e}")
+
+    elif provider == "JIRA":
         from .jira_client import JiraClient, JiraError
-        meta = integration.metadata or {}
-        client = JiraClient(
-            base_url=integration.base_url or "https://api.atlassian.com",
-            api_token=integration.api_token,
-            api_user=meta.get("api_user", ""),
-        )
-        project_key = meta.get("project_key", "CAD")
+
+        if integration:
+            base_url = integration.base_url or os.environ.get("JIRA_BASE_URL", "https://api.atlassian.com")
+            api_token = os.environ.get("JIRA_API_TOKEN", "")
+            api_user = os.environ.get("JIRA_API_USER", "")
+            project_key = integration.board_key or os.environ.get("JIRA_PROJECT_KEY", "CAD")
+        else:
+            base_url = os.environ.get("JIRA_BASE_URL", "https://api.atlassian.com")
+            api_token = os.environ.get("JIRA_API_TOKEN", "")
+            api_user = os.environ.get("JIRA_API_USER", "")
+            project_key = os.environ.get("JIRA_PROJECT_KEY", "CAD")
+
+        if not api_token:
+            errors.append("Jira API token missing. Set JIRA_API_TOKEN in .env")
+            return created, api_calls, errors
+
+        client = JiraClient(base_url=base_url, api_token=api_token, api_user=api_user)
         for task in proposal.tasks_payload or []:
             try:
                 result = client.create_issue(
@@ -177,31 +334,6 @@ def _push_to_external(project, proposal, provider: str) -> tuple[list[dict], int
                 api_calls = client.calls_made
             except JiraError as e:
                 errors.append(f"Jira error on {task.get('ref', '?')}: {e}")
-    elif provider == "TRELLO":
-        from .trello_client import TrelloClient, TrelloError
-        meta = integration.metadata or {}
-        client = TrelloClient(
-            api_key=meta.get("api_key", ""),
-            api_token=integration.api_token,
-        )
-        board_id = meta.get("board_id", "")
-        # Create a list per sprint
-        sprint_lists: dict[str, str] = {}
-        for sprint in proposal.sprints_payload or []:
-            try:
-                result = client.create_list(board_id, sprint.get("name", "Sprint"))
-                sprint_lists[sprint.get("name", "")] = result["external_id"]
-                created.append(result)
-            except TrelloError as e:
-                errors.append(f"Trello list error: {e}")
-        for task in proposal.tasks_payload or []:
-            try:
-                list_id = sprint_lists.get(task.get("sprint", ""), list(sprint_lists.values())[0] if sprint_lists else "")
-                result = client.create_card(list_id, task.get("title", ""), task.get("description", ""))
-                created.append(result)
-                api_calls = client.calls_made
-            except TrelloError as e:
-                errors.append(f"Trello card error: {e}")
     else:
         errors.append(f"Provider {provider} non supporté")
 

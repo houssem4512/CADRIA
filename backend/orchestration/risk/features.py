@@ -32,6 +32,13 @@ def extract_task_features(task) -> dict[str, float]:
     if task.due_date and task.due_date < now and task.status != "DONE":
         overdue_days = (now - task.due_date).days
 
+    # Effort variance only makes sense if the task has been started
+    # (spent > 0). For TODO tasks with 0 spent_hours, variance = 0.
+    if spent > 0 and est > 0:
+        effort_variance = round(abs(est - spent) / est, 3)
+    else:
+        effort_variance = 0.0
+
     return {
         "estimate_hours": est,
         "spent_hours": spent,
@@ -44,7 +51,7 @@ def extract_task_features(task) -> dict[str, float]:
         "is_review": 1.0 if task.status == "REVIEW" else 0.0,
         "is_done": 1.0 if task.status == "DONE" else 0.0,
         "priority_high": 1.0 if task.priority in ("HIGH", "HIGHEST") else 0.0,
-        "effort_variance": round(abs(est - spent) / max(est, 1), 3),
+        "effort_variance": effort_variance,
     }
 
 

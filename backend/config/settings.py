@@ -163,6 +163,13 @@ GROQ_TIMEOUT = int(os.environ.get("GROQ_TIMEOUT", "60"))
 GROQ_MAX_TOKENS = int(os.environ.get("GROQ_MAX_TOKENS", "8000"))
 
 # ---------------------------------------------------------------------------
+# Trello OAuth — app-level API key (one-time setup)
+# Get it at https://trello.com/power-ups/admin
+# Each user connects their own Trello account via /api/trello/auth-url/
+# ---------------------------------------------------------------------------
+TRELLO_APP_KEY = os.environ.get("TRELLO_APP_KEY", "")
+
+# ---------------------------------------------------------------------------
 # Celery — for Agent 3 (Risk) weekly scheduling
 # Uses Django DB broker (simplest — no Redis needed for dev).
 # For production, switch to Redis: CELERY_BROKER_URL = "redis://localhost:6379/0"

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ErrorBoundary, TabErrorFallback } from '../../components/ErrorBoundary'
 import {
   Activity, AlertTriangle, ArrowLeft, BarChart3, Bot, Calendar, Check, CheckCircle2, ChevronRight,
   Clock, Download, Edit3, ExternalLink, Eye, GitBranch, Layers, MessageSquare, PlayCircle,
@@ -13,6 +14,7 @@ import {
   EmptyState, Input, Modal, Progress, Ring, Select, Skeleton, Tabs, Textarea,
 } from '../../components/ui'
 import { BarChartView, DonutChart, RadarChartView, TrendChart } from '../../components/charts'
+import { TrelloConnect } from './TrelloConnect'
 import {
   PROPOSAL_STATUS, PROJECT_STATUS, RISK_CATEGORY, RUN_STATUS, TASK_PRIORITY, TASK_STATUS,
   TASK_TYPE, cx, currency, daysUntil, formatDate, formatDateTime, healthTone, hours, num,
@@ -160,15 +162,15 @@ export default function ProjectDetail() {
         className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur"
       />
 
-      {tabState === 'overview' && <OverviewTab project={project} onRecompute={refetch} />}
-      {tabState === 'tasks' && <TasksTab project={project} onChanged={refetch} canEdit={canEdit} />}
-      {tabState === 'board' && <BoardTab project={project} onChanged={refetch} canEdit={canEdit} />}
-      {tabState === 'team' && <TeamTab project={project} onChanged={refetch} canEdit={canEdit} />}
-      {tabState === 'agents' && <AgentsTab project={project} onChanged={refetch} canEdit={canEdit} />}
-      {tabState === 'validation' && <ValidationTab project={project} onChanged={refetch} canEdit={canEdit} />}
-      {tabState === 'risks' && <RisksTab project={project} onChanged={refetch} />}
-      {tabState === 'integrations' && <IntegrationsTab project={project} onChanged={refetch} canEdit={canEdit} />}
-      {tabState === 'activity' && <ActivityTab project={project} />}
+      {tabState === 'overview' && <ErrorBoundary fallback={TabErrorFallback}><OverviewTab project={project} onRecompute={refetch} /></ErrorBoundary>}
+      {tabState === 'tasks' && <ErrorBoundary fallback={TabErrorFallback}><TasksTab project={project} onChanged={refetch} canEdit={canEdit} /></ErrorBoundary>}
+      {tabState === 'board' && <ErrorBoundary fallback={TabErrorFallback}><BoardTab project={project} onChanged={refetch} canEdit={canEdit} /></ErrorBoundary>}
+      {tabState === 'team' && <ErrorBoundary fallback={TabErrorFallback}><TeamTab project={project} onChanged={refetch} canEdit={canEdit} /></ErrorBoundary>}
+      {tabState === 'agents' && <ErrorBoundary fallback={TabErrorFallback}><AgentsTab project={project} onChanged={refetch} canEdit={canEdit} /></ErrorBoundary>}
+      {tabState === 'validation' && <ErrorBoundary fallback={TabErrorFallback}><ValidationTab project={project} onChanged={refetch} canEdit={canEdit} /></ErrorBoundary>}
+      {tabState === 'risks' && <ErrorBoundary fallback={TabErrorFallback}><RisksTab project={project} onChanged={refetch} /></ErrorBoundary>}
+      {tabState === 'integrations' && <ErrorBoundary fallback={TabErrorFallback}><IntegrationsTab project={project} onChanged={refetch} canEdit={canEdit} /></ErrorBoundary>}
+      {tabState === 'activity' && <ErrorBoundary fallback={TabErrorFallback}><ActivityTab project={project} /></ErrorBoundary>}
     </div>
   )
 }
@@ -458,7 +460,13 @@ function TasksTab({ project, onChanged, canEdit }) {
                             <div className="mt-1 flex flex-wrap items-center gap-1.5">
                               <Badge className={TASK_TYPE[t.task_type]?.cls}>{TASK_TYPE[t.task_type]?.label}</Badge>
                               {t.blocked && <Badge className="badge-danger">Bloquée</Badge>}
-                              {t.external_id && <Badge className="badge-sky">{t.external_id}</Badge>}
+                              {t.external_id && t.external_url && (
+                                <a href={t.external_url} target="_blank" rel="noreferrer" 
+                                   className="badge badge-sky inline-flex items-center gap-1 hover:bg-sky-100" title="Ouvrir dans Trello">
+                                  <ExternalLink size={10} /> Trello
+                                </a>
+                              )}
+                              {t.external_id && !t.external_url && <Badge className="badge-sky">Trello</Badge>}
                             </div>
                           </div>
                         </div>
@@ -1148,6 +1156,10 @@ function ValidationModal({ proposal, onClose, onDone, canEdit = true }) {
   )
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+  const [pushingToTrello, setPushingToTrello] = useState(false)
+  const [pushResult, setPushResult] = useState(null)
+  const [autoAssigning, setAutoAssigning] = useState(false)
+  const [assignResult, setAssignResult] = useState(null)
 
   const submit = async () => {
     if (!decision) return
@@ -1162,12 +1174,50 @@ function ValidationModal({ proposal, onClose, onDone, canEdit = true }) {
     finally { setSaving(false) }
   }
 
+  const pushToTrello = async () => {
+    setPushingToTrello(true); setPushResult(null)
+    try {
+      const { data } = await api.post(`/proposals/${proposal.id}/push-to-trello/`)
+      setPushResult({ ok: true, pushed: data.pushed_tasks || 0, errors: data.push_errors || [] })
+      if (onDone) onDone()
+    } catch (e) {
+      setPushResult({ ok: false, error: errorMessage(e) })
+    } finally {
+      setPushingToTrello(false)
+    }
+  }
+
+  const autoAssign = async () => {
+    setAutoAssigning(true); setAssignResult(null)
+    try {
+      const { data } = await api.post(`/proposals/${proposal.id}/auto-assign/`)
+      setAssignResult({ ok: true, assigned: data.assigned_count || 0, skipped: data.skipped_count || 0, errors: data.errors || [] })
+      if (onDone) onDone()
+    } catch (e) {
+      setAssignResult({ ok: false, error: errorMessage(e) })
+    } finally {
+      setAutoAssigning(false)
+    }
+  }
+
   return (
     <Modal open onClose={onClose} title={proposal.title}
       subtitle={`v${proposal.version} · ${proposal.project_name}`} size="xl" icon={CheckCircle2}
       footer={
         proposal.status !== 'PENDING' || !canEdit
-          ? <Button variant="secondary" onClick={onClose}>Fermer</Button>
+          ? <>
+              <Button variant="secondary" onClick={onClose}>Fermer</Button>
+              {proposal.status === 'APPROVED' && canEdit && (
+                <Button variant="secondary" icon={Users} loading={autoAssigning} onClick={autoAssign}>
+                  Auto-assigner
+                </Button>
+              )}
+              {proposal.status === 'APPROVED' && canEdit && (
+                <Button variant="primary" icon={ExternalLink} loading={pushingToTrello} onClick={pushToTrello}>
+                  Pousser vers Trello
+                </Button>
+              )}
+            </>
           : <>
               <Button variant="ghost" onClick={onClose}>Annuler</Button>
               <Button variant="danger" icon={XCircle} loading={saving && decision === 'REJECT'}
@@ -1182,6 +1232,24 @@ function ValidationModal({ proposal, onClose, onDone, canEdit = true }) {
         </Alert>
       )}
       {err && <Alert tone="error" className="mb-4">{err}</Alert>}
+      {pushResult && (
+        <Alert tone={pushResult.ok ? 'success' : 'error'} className="mb-4"
+          title={pushResult.ok ? 'Push Trello terminé' : 'Push Trello échoué'}>
+          {pushResult.ok
+            ? `${pushResult.pushed} tâche(s) créée(s) sur le board Trello.`
+              + (pushResult.errors.length ? ` ${pushResult.errors.length} erreur(s): ${pushResult.errors.slice(0, 2).join('; ')}` : '')
+            : pushResult.error}
+        </Alert>
+      )}
+      {assignResult && (
+        <Alert tone={assignResult.ok ? 'success' : 'error'} className="mb-4"
+          title={assignResult.ok ? 'Auto-assignation terminée' : 'Auto-assignation échouée'}>
+          {assignResult.ok
+            ? `${assignResult.assigned} tâche(s) assignée(s) automatiquement. ${assignResult.skipped} sans suggestion matchée.`
+              + (assignResult.errors.length ? ` ${assignResult.errors.length} erreur(s): ${assignResult.errors.slice(0, 2).join('; ')}` : '')
+            : assignResult.error}
+        </Alert>
+      )}
 
       <div className="space-y-5">
         <div className="grid gap-3 sm:grid-cols-4">
@@ -1254,8 +1322,25 @@ function ValidationModal({ proposal, onClose, onDone, canEdit = true }) {
 
         {(proposal.assignments || []).length > 0 && (
           <div>
-            <p className="label">Assignations proposées — à arbitrer</p>
-            <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="label">Assignations proposées — à arbitrer</p>
+              {proposal.status === 'PENDING' && canEdit && (
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => setAssignments(Object.fromEntries(proposal.assignments.map((a) => [String(a.id), true])))}
+                    className="rounded-md border border-brand-300 bg-brand-50 px-2.5 py-1 text-[11px] font-semibold text-brand-700 transition hover:bg-brand-100">
+                    <Check size={11} className="inline mr-1" />Accepter toutes
+                  </button>
+                  <button
+                    onClick={() => setAssignments(Object.fromEntries(proposal.assignments.map((a) => [String(a.id), false])))}
+                    className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600 transition hover:bg-slate-100">
+                    <X size={11} className="inline mr-1" />Refuser toutes
+                  </button>
+                </div>
+              )}
+            </div>
+            {(proposal.assignments || []).filter((a) => assignments[String(a.id)]).length} acceptée(s) / {proposal.assignments.length} au total
+            <div className="mt-2 space-y-2">
               {proposal.assignments.map((a) => {
                 const on = assignments[String(a.id)]
                 return (
@@ -1312,7 +1397,7 @@ function ValidationModal({ proposal, onClose, onDone, canEdit = true }) {
             <label className="flex cursor-pointer items-center gap-2.5 text-[12.5px] text-slate-700">
               <input type="checkbox" checked={pushExternal} onChange={(e) => setPushExternal(e.target.checked)}
                 className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
-              Pousser vers {project_provider_label(proposal)} (Agent 2 — non branché, action journalisée uniquement)
+              Pousser vers {project_provider_label(proposal)} (les tâches seront créées sur le board Trello connecté)
             </label>
           </div>
         </div>
@@ -1334,6 +1419,8 @@ function RisksTab({ project, onChanged }) {
   const [ack, setAck] = useState(null)
   const [comment, setComment] = useState('')
   const [sending, setSending] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analyzeResult, setAnalyzeResult] = useState(null)
 
   const open = alerts.filter((a) => !a.acknowledged)
   const done = alerts.filter((a) => a.acknowledged)
@@ -1342,6 +1429,20 @@ function RisksTab({ project, onChanged }) {
     setAck(a.id)
     try { await api.post(`/risks/${a.id}/acknowledge/`); await refetch(); await onChanged() }
     finally { setAck(null) }
+  }
+
+  const analyzeRisks = async () => {
+    setAnalyzing(true); setAnalyzeResult(null)
+    try {
+      await api.post('/agents/runs/start/', {
+        project: project.id, agent: 'RISK',
+        input: { brief: project.brief, project_reference: project.reference },
+      })
+      setAnalyzeResult({ ok: true })
+      await refetch(); await onChanged()
+    } catch (e) {
+      setAnalyzeResult({ ok: false, error: errorMessage(e) })
+    } finally { setAnalyzing(false) }
   }
 
   const postComment = async () => {
@@ -1380,9 +1481,24 @@ function RisksTab({ project, onChanged }) {
         </Card>
       </div>
 
+      {analyzeResult && (
+        <Alert tone={analyzeResult.ok ? 'success' : 'error'} className="mb-4"
+          title={analyzeResult.ok ? 'Analyse terminée' : 'Analyse échouée'}>
+          {analyzeResult.ok
+            ? 'L\'analyse des risques a été exécutée. Consultez les alertes ci-dessous.'
+            : analyzeResult.error}
+        </Alert>
+      )}
+
+      <div className="mb-4 flex justify-end">
+        <Button variant="primary" icon={ShieldAlert} loading={analyzing} onClick={analyzeRisks}>
+          Analyser les risques
+        </Button>
+      </div>
+
       {alerts.length === 0 ? (
         <EmptyState icon={ShieldAlert} title="Aucune alerte de risque"
-          description="L’Agent 3 produira les scores et alertes une fois le runtime branché." />
+          description="Le projet est sain. Cliquez sur « Analyser les risques » pour lancer une nouvelle analyse." />
       ) : (
         <div className="space-y-3">
           {[...open, ...done].map((a) => {
@@ -1501,6 +1617,8 @@ function IntegrationsTab({ project, onChanged, canEdit }) {
 
   return (
     <div className="space-y-4">
+      <TrelloConnect project={project} onChanged={refetch} />
+
       <Alert tone="info" title="Agent 2 — connecteurs non branchés">
         Les connecteurs Jira, Trello et GitHub sont configurés côté plateforme mais l’Agent 2 (intégration)
         n’est pas encore branché : les tests de connexion et les écritures sont journalisés sans effet externe.

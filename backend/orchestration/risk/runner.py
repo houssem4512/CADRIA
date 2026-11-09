@@ -88,7 +88,7 @@ def run(run: AgentRun) -> dict[str, Any]:
                     "score": int(score * 100),
                     "title": f"Risque détecté sur « {task.title[:60]} »",
                     "factors": factors,
-                    "recommendation": _recommendation(category, score),
+                    "recommendation": _recommendation(category, score, factors),
                 }
                 alerts.append(alert)
 
@@ -105,21 +105,21 @@ def run(run: AgentRun) -> dict[str, Any]:
                 severity=a["severity"],
                 score=a["score"],
                 title=a["title"],
-                description=a["recommendation"],
+                message=a["recommendation"],
                 factors=a["factors"],
+                recommendation=a["recommendation"],
             )
 
         # Step 4: Project-level risk score (max of task scores, with weights)
         project_risk = max((s["risk_score"] for s in task_scores), default=0.0)
-        project.risk_score = round(project_risk, 3)
+        # Store as 0-100 (frontend expects integer 0-100, not 0-1 decimal)
+        project.risk_score = round(project_risk * 100, 2)
         if project_risk >= HIGH_ALERT_THRESHOLD:
-            project.health = "CRITICAL"
+            project.health = "RED"
         elif project_risk >= ALERT_THRESHOLD:
-            project.health = "AT_RISK"
-        elif project_risk >= 0.3:
-            project.health = "WATCH"
+            project.health = "AMBER"
         else:
-            project.health = "HEALTHY"
+            project.health = "GREEN"
         project.save(update_fields=["risk_score", "health"])
 
         # Step 5: Update the run
@@ -128,7 +128,7 @@ def run(run: AgentRun) -> dict[str, Any]:
         run.status = AgentRun.Status.SUCCEEDED
         run.step = f"{len(alerts)} alertes créées, score projet {int(project_risk * 100)}%"
         run.output_payload = {
-            "risk_score": round(project_risk, 3),
+            "risk_score": round(project_risk * 100, 2),
             "alerts": alerts,
             "task_scores": task_scores,
             "comment_stats": comment_stats,
@@ -190,18 +190,46 @@ def _category_from_factors(factors: list[dict]) -> str:
     return mapping.get(top, "DELAY")
 
 
-def _recommendation(category: str, score: float) -> str:
-    """Generate a recommendation message for a risk alert."""
+def _recommendation(category: str, score: float, factors: list[dict] = None) -> str:
+    """Generate a specific recommendation message based on category + top factors."""
+    factors = factors or []
+    top_factor = factors[0]["label"] if factors else ""
+
     recommendations = {
-        "DELAY": "Ré-estimer le reste à faire et envisager un découpage supplémentaire ou une réallocation.",
-        "BLOCKER": "Identifier le dépendance bloquante et escalating auprès du chef de projet.",
-        "QUALITY": "Mettre en place une revue de code renforcée et des tests supplémentaires.",
-        "LOAD": "Rééquilibrer la charge — envisager de réaffecter ou d'ajouter des ressources.",
-        "SCOPE": "Cadrer le périmètre avec le client et geler les nouveaux besoins.",
-        "BUDGET": "Réviser le budget avec le sponsor et ajuster le scope si nécessaire.",
+        "DELAY": {
+            "overdue_days": "Tâche en retard — ré-estimer le reste à faire et envisager un découpage ou une réallocation.",
+            "is_overdue": "Échéance dépassée — renégocier le délai ou désescalader le périmètre.",
+            "project_overdue_ratio": "Trop de tâches en retard — revoir la planification du sprint.",
+            "project_avg_progress": "Avancement global insuffisant — envisager un point de blocage en équipe.",
+            "_default": "Ré-estimer le reste à faire et envisager un découpage supplémentaire ou une réallocation.",
+        },
+        "BLOCKER": {
+            "is_blocked": "Tâche bloquée — identifier la dépendance et escalader auprès du chef de projet.",
+            "comment_blocked_count": "Signaux de blocage détectés dans les commentaires — organiser un point de résolution.",
+            "comment_waiting_count": "Tâches en attente de validation — relancer les parties prenantes.",
+            "_default": "Identifier la dépendance bloquante et escalader auprès du chef de projet.",
+        },
+        "QUALITY": {
+            "effort_variance": "Écart estimé/réalisé important — revoir le chiffrage et la compréhension du besoin.",
+            "comment_regression_count": "Régressions signalées — planifier une revue de code et des tests de non-régression.",
+            "comment_weak_signal_ratio": "Signaux faibles détectés — organiser une rétro d'équipe sur les difficultés.",
+            "_default": "Mettre en place une revue de code renforcée et des tests supplémentaires.",
+        },
+        "LOAD": {
+            "project_blocked_ratio": "Taux de blocage élevé — rééquilibrer la charge et débloquer les dépendances.",
+            "_default": "Rééquilibrer la charge — envisager de réaffecter ou d'ajouter des ressources.",
+        },
+        "SCOPE": {
+            "_default": "Cadrer le périmètre avec le client et geler les nouveaux besoins.",
+        },
+        "BUDGET": {
+            "_default": "Réviser le budget avec le sponsor et ajuster le scope si nécessaire.",
+        },
     }
-    base = recommendations.get(category, "Suivre ce risque en comité projet.")
-    return f"Score {int(score * 100)}/100. {base}"
+
+    cat_recs = recommendations.get(category, {"_default": "Suivre ce risque en comité projet."})
+    rec = cat_recs.get(top_factor, cat_recs.get("_default"))
+    return rec
 
 
 def _audit(run, correlation_id, project_risk, alerts, comment_stats, model_ready):
