@@ -1,0 +1,508 @@
+{
+  "id": 21,
+  "title": "Plan de découpage — e learning",
+  "summary": "Migrer les applications internes vers une infrastructure conteneurisée, industrialiser les déploiements (GitOps) et mettre en place l'observabilité complète, sans interruption de service.",
+  "tasks": [
+    {
+      "ref": "T-001",
+      "lot": "Assessment & Planning",
+      "title": "Inventaire des services et mapping des dépendances",
+      "description": "Recenser tous les services internes, leurs dépendances et leurs exigences d'infrastructure",
+      "type": "SPIKE",
+      "priority": "HIGH",
+      "estimate_hours": 16.0,
+      "story_points": 2,
+      "skills": [
+        "Architecture",
+        "Docker"
+      ],
+      "acceptance_criteria": [
+        "Inventaire complet validé par l'équipe",
+        "Diagramme de dépendances approuvé",
+        "Documentation stockée dans le repo central"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 1 · Fondations"
+    },
+    {
+      "ref": "T-002",
+      "lot": "Assessment & Planning",
+      "title": "Définition de la stratégie de conteneurisation",
+      "description": "Choisir les bases d'images, les patterns de Dockerfile et les conventions de versioning",
+      "type": "TECH",
+      "priority": "HIGH",
+      "estimate_hours": 24.0,
+      "story_points": 3,
+      "skills": [
+        "Docker",
+        "Kubernetes"
+      ],
+      "acceptance_criteria": [
+        "Document de stratégie validé",
+        "Base images sélectionnées",
+        "Guide de bonnes pratiques publié"
+      ],
+      "risk_score": 35,
+      "sprint": "Sprint 1 · Fondations"
+    },
+    {
+      "ref": "T-003",
+      "lot": "Assessment & Planning",
+      "title": "Conception du workflow GitOps",
+      "description": "Modéliser le processus de CI/CD, les branches Git et la synchronisation avec ArgoCD",
+      "type": "TECH",
+      "priority": "MEDIUM",
+      "estimate_hours": 20.0,
+      "story_points": 3,
+      "skills": [
+        "GitOps",
+        "ArgoCD",
+        "Helm"
+      ],
+      "acceptance_criteria": [
+        "Diagramme du workflow validé",
+        "Structure des dépôts définie",
+        "Processus d'approbation documenté"
+      ],
+      "risk_score": 25,
+      "sprint": "Sprint 1 · Fondations"
+    },
+    {
+      "ref": "T-004",
+      "lot": "Assessment & Planning",
+      "title": "Plan de rollback et gestion des risques",
+      "description": "Élaborer les procédures de retour arrière et les critères de bascule",
+      "type": "DOC",
+      "priority": "MEDIUM",
+      "estimate_hours": 12.0,
+      "story_points": 2,
+      "skills": [
+        "Project Management"
+      ],
+      "acceptance_criteria": [
+        "Plan de rollback détaillé",
+        "Scénarios de test de rollback définis",
+        "Sign‑off des parties prenantes"
+      ],
+      "risk_score": 40,
+      "sprint": "Sprint 1 · Fondations"
+    },
+    {
+      "ref": "T-005",
+      "lot": "Containerization & CI/CD",
+      "title": "Dockerisation du service A (Node.js)",
+      "description": "Créer un Dockerfile optimisé, builder l'image et la pousser dans le registre interne",
+      "type": "FEATURE",
+      "priority": "HIGH",
+      "estimate_hours": 30.0,
+      "story_points": 4,
+      "skills": [
+        "Docker",
+        "Node.js"
+      ],
+      "acceptance_criteria": [
+        "Dockerfile validé par le peer review",
+        "Image construite et testée localement",
+        "Image disponible dans le registre avec tag versionné"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 2 · Socle"
+    },
+    {
+      "ref": "T-006",
+      "lot": "Containerization & CI/CD",
+      "title": "Dockerisation du service B (Python)",
+      "description": "Créer un Dockerfile, gérer les dépendances et publier l'image",
+      "type": "FEATURE",
+      "priority": "HIGH",
+      "estimate_hours": 28.0,
+      "story_points": 4,
+      "skills": [
+        "Docker",
+        "Python"
+      ],
+      "acceptance_criteria": [
+        "Dockerfile approuvé",
+        "Image fonctionnelle en environnement de test",
+        "Image poussée avec version semver"
+      ],
+      "risk_score": 35,
+      "sprint": "Sprint 2 · Socle"
+    },
+    {
+      "ref": "T-007",
+      "lot": "Containerization & CI/CD",
+      "title": "Création des chart Helm pour les services",
+      "description": "Définir les chart Helm, templates et valeurs par défaut pour chaque micro‑service",
+      "type": "TECH",
+      "priority": "MEDIUM",
+      "estimate_hours": 24.0,
+      "story_points": 3,
+      "skills": [
+        "Helm",
+        "Kubernetes"
+      ],
+      "acceptance_criteria": [
+        "Chart versionné dans le repo Git",
+        "Templates testés avec helm template",
+        "Documentation des valeurs configurables"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 2 · Socle"
+    },
+    {
+      "ref": "T-008",
+      "lot": "Containerization & CI/CD",
+      "title": "Installation et configuration d'ArgoCD",
+      "description": "Déployer ArgoCD sur le cluster, créer les applications et configurer la synchronisation automatique",
+      "type": "TECH",
+      "priority": "HIGH",
+      "estimate_hours": 20.0,
+      "story_points": 3,
+      "skills": [
+        "ArgoCD",
+        "Kubernetes"
+      ],
+      "acceptance_criteria": [
+        "ArgoCD accessible via UI",
+        "Applications créées et synchronisées",
+        "Health checks passent sans erreur"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 2 · Socle"
+    },
+    {
+      "ref": "T-009",
+      "lot": "Containerization & CI/CD",
+      "title": "Mise en place du pipeline CI (GitHub Actions)",
+      "description": "Automatiser la construction, les tests et le push d'images Docker à chaque PR merge",
+      "type": "TECH",
+      "priority": "MEDIUM",
+      "estimate_hours": 22.0,
+      "story_points": 3,
+      "skills": [
+        "GitHub Actions",
+        "Docker"
+      ],
+      "acceptance_criteria": [
+        "Pipeline déclenché sur chaque push",
+        "Tests unitaires exécutés avec succès",
+        "Image publiée dans le registre"
+      ],
+      "risk_score": 25,
+      "sprint": "Sprint 2 · Socle"
+    },
+    {
+      "ref": "T-010",
+      "lot": "Containerization & CI/CD",
+      "title": "Tests de fumée automatisés post‑déploiement",
+      "description": "Développer des scripts de validation rapide des services déployés via ArgoCD",
+      "type": "TEST",
+      "priority": "MEDIUM",
+      "estimate_hours": 16.0,
+      "story_points": 2,
+      "skills": [
+        "Python",
+        "pytest"
+      ],
+      "acceptance_criteria": [
+        "Scripts exécutés dans le pipeline",
+        "Tous les tests passent en environnement staging",
+        "Rapport de validation archivé"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 2 · Socle"
+    },
+    {
+      "ref": "T-011",
+      "lot": "Observability & Monitoring",
+      "title": "Déploiement de Prometheus et Grafana",
+      "description": "Installer la stack de métriques, configurer le scraping des services et créer des dashboards de base",
+      "type": "FEATURE",
+      "priority": "HIGH",
+      "estimate_hours": 24.0,
+      "story_points": 3,
+      "skills": [
+        "Prometheus",
+        "Grafana",
+        "Kubernetes"
+      ],
+      "acceptance_criteria": [
+        "Prometheus collecte les métriques des pods",
+        "Grafana affiche les dashboards pré‑définis",
+        "Alertes de santé configurées"
+      ],
+      "risk_score": 25,
+      "sprint": "Sprint 3 · Accélération"
+    },
+    {
+      "ref": "T-012",
+      "lot": "Observability & Monitoring",
+      "title": "Intégration de Loki pour la centralisation des logs",
+      "description": "Déployer Loki, configurer les sidecars et créer des panels de visualisation dans Grafana",
+      "type": "FEATURE",
+      "priority": "MEDIUM",
+      "estimate_hours": 20.0,
+      "story_points": 3,
+      "skills": [
+        "Loki",
+        "Grafana"
+      ],
+      "acceptance_criteria": [
+        "Logs agrégés dans Loki",
+        "Recherche de logs fonctionnelle",
+        "Panels Grafana affichant les logs pertinents"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 3 · Accélération"
+    },
+    {
+      "ref": "T-013",
+      "lot": "Observability & Monitoring",
+      "title": "Instrumentation OpenTelemetry des applications",
+      "description": "Ajouter les SDK OpenTelemetry aux services Node.js et Python, exporter les traces vers Jaeger",
+      "type": "TECH",
+      "priority": "HIGH",
+      "estimate_hours": 28.0,
+      "story_points": 4,
+      "skills": [
+        "OpenTelemetry",
+        "Node.js",
+        "Python"
+      ],
+      "acceptance_criteria": [
+        "SDK intégré et configuré",
+        "Traces visibles dans Jaeger/Grafana",
+        "Impact performance <5% mesuré"
+      ],
+      "risk_score": 35,
+      "sprint": "Sprint 3 · Accélération"
+    },
+    {
+      "ref": "T-014",
+      "lot": "Observability & Monitoring",
+      "title": "Définition des règles d'alerte et on‑call",
+      "description": "Créer des alertes critiques dans Alertmanager et configurer les canaux de notification",
+      "type": "DOC",
+      "priority": "MEDIUM",
+      "estimate_hours": 12.0,
+      "story_points": 2,
+      "skills": [
+        "Alertmanager"
+      ],
+      "acceptance_criteria": [
+        "Alertes testées et déclenchées",
+        "Escalation policy documentée",
+        "PagerDuty (ou équivalent) intégré"
+      ],
+      "risk_score": 15,
+      "sprint": "Sprint 3 · Accélération"
+    },
+    {
+      "ref": "T-015",
+      "lot": "Observability & Monitoring",
+      "title": "Documentation de la stack d'observabilité",
+      "description": "Rédiger les guides d'installation, d'utilisation et de maintenance pour l'équipe SRE",
+      "type": "DOC",
+      "priority": "LOW",
+      "estimate_hours": 10.0,
+      "story_points": 1,
+      "skills": [
+        "Markdown"
+      ],
+      "acceptance_criteria": [
+        "Guide publié dans Confluence",
+        "Revue par l'équipe SRE",
+        "Lien de versionnage dans le repo"
+      ],
+      "risk_score": 10,
+      "sprint": "Sprint 3 · Accélération"
+    },
+    {
+      "ref": "T-016",
+      "lot": "Production Rollout & Stability",
+      "title": "Conception de la stratégie Blue/Green",
+      "description": "Définir les flux de trafic, les critères de bascule et les tests de validation",
+      "type": "TECH",
+      "priority": "HIGH",
+      "estimate_hours": 18.0,
+      "story_points": 3,
+      "skills": [
+        "Kubernetes",
+        "ArgoCD"
+      ],
+      "acceptance_criteria": [
+        "Stratégie documentée et approuvée",
+        "Environnement de test Blue/Green fonctionnel",
+        "Plan de bascule automatisé"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 3 · Mise en prod"
+    },
+    {
+      "ref": "T-017",
+      "lot": "Production Rollout & Stability",
+      "title": "Migration progressive des services en production",
+      "description": "Déployer les services conteneurisés en mode Blue/Green puis basculer le trafic sans interruption",
+      "type": "FEATURE",
+      "priority": "HIGH",
+      "estimate_hours": 30.0,
+      "story_points": 4,
+      "skills": [
+        "Kubernetes",
+        "Docker"
+      ],
+      "acceptance_criteria": [
+        "Tous les services migrés avec 0% d'incident client",
+        "Tests de validation post‑migration réussis",
+        "Rollback fonctionnel testé"
+      ],
+      "risk_score": 45,
+      "sprint": "Sprint 3 · Mise en prod"
+    },
+    {
+      "ref": "T-018",
+      "lot": "Production Rollout & Stability",
+      "title": "Tests de charge et validation de performance",
+      "description": "Exécuter des scénarios de charge avec k6 pour vérifier les SLA après migration",
+      "type": "TEST",
+      "priority": "MEDIUM",
+      "estimate_hours": 20.0,
+      "story_points": 3,
+      "skills": [
+        "k6",
+        "Load testing"
+      ],
+      "acceptance_criteria": [
+        "Scénarios de charge exécutés",
+        "Latence <200 ms sous charge cible",
+        "Rapport de performance validé"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 3 · Mise en prod"
+    },
+    {
+      "ref": "T-019",
+      "lot": "Production Rollout & Stability",
+      "title": "Tuning post‑migration et correction des anomalies",
+      "description": "Analyser les métriques, corriger les problèmes détectés et optimiser les configurations",
+      "type": "BUG",
+      "priority": "MEDIUM",
+      "estimate_hours": 16.0,
+      "story_points": 2,
+      "skills": [
+        "Grafana",
+        "Prometheus"
+      ],
+      "acceptance_criteria": [
+        "Anomalies critiques résolues",
+        "Dashboards mis à jour avec nouvelles métriques",
+        "Validation de stabilité pendant 48 h"
+      ],
+      "risk_score": 35,
+      "sprint": "Sprint 3 · Mise en prod"
+    },
+    {
+      "ref": "T-020",
+      "lot": "Production Rollout & Stability",
+      "title": "Documentation finale et transfert de connaissances",
+      "description": "Compiler la documentation complète et organiser une session de passation avec l'équipe d'exploitation",
+      "type": "DOC",
+      "priority": "LOW",
+      "estimate_hours": 12.0,
+      "story_points": 2,
+      "skills": [
+        "Confluence"
+      ],
+      "acceptance_criteria": [
+        "Documentation complète livrée",
+        "Session de formation réalisée",
+        "Feedback positif des participants"
+      ],
+      "risk_score": 15,
+      "sprint": "Sprint 3 · Mise en prod"
+    }
+  ],
+  "lots": [
+    {
+      "name": "Assessment & Planning",
+      "description": "Analyse de l'existant, définition de la stratégie de conteneurisation et du workflow GitOps",
+      "estimate_hours": 72.0,
+      "confidence": 0.85,
+      "color": "#2563EB",
+      "order": 1
+    },
+    {
+      "name": "Containerization & CI/CD",
+      "description": "Dockerisation des services, création des chart Helm et mise en place du pipeline GitOps",
+      "estimate_hours": 140.0,
+      "confidence": 0.8,
+      "color": "#0EA5E9",
+      "order": 2
+    },
+    {
+      "name": "Observability & Monitoring",
+      "description": "Déploiement de la stack d'observabilité et instrumentation des applications",
+      "estimate_hours": 94.0,
+      "confidence": 0.78,
+      "color": "#10B981",
+      "order": 3
+    },
+    {
+      "name": "Production Rollout & Stability",
+      "description": "Stratégie de déploiement sans interruption, migration progressive et stabilisation",
+      "estimate_hours": 96.0,
+      "confidence": 0.8,
+      "color": "#F59E0B",
+      "order": 4
+    }
+  ],
+  "sprints": [
+    {
+      "name": "Sprint 1 · Fondations",
+      "goal": "Établir le socle d'analyse, la stratégie de conteneurisation et le workflow GitOps",
+      "capacity_hours": 240.0
+    },
+    {
+      "name": "Sprint 2 · Socle",
+      "goal": "Dockeriser les services, créer les chart Helm et mettre en place le pipeline GitOps",
+      "capacity_hours": 240.0
+    },
+    {
+      "name": "Sprint 3 · Accélération",
+      "goal": "Déployer l'observabilité, finaliser la migration et assurer la stabilité en production",
+      "capacity_hours": 240.0
+    }
+  ],
+  "risks": [
+    {
+      "category": "DELAY",
+      "title": "Complexité des dépendances non identifiées",
+      "score": 60
+    },
+    {
+      "category": "QUALITY",
+      "title": "Mauvaise configuration des probes entraînant des redémarrages",
+      "score": 45
+    },
+    {
+      "category": "BLOCKER",
+      "title": "Quota d'images du registre atteint, bloquant les déploiements",
+      "score": 50
+    },
+    {
+      "category": "BUDGET",
+      "title": "Coût supplémentaire du stockage de logs et de la rétention métriques",
+      "score": 30
+    }
+  ],
+  "assumptions": [
+    "Équipe de 4 membres (2 développeurs, 1 ingénieur Ops, 1 QA) disponible à plein temps",
+    "Cluster Kubernetes existant et accès administrateur disponible",
+    "Registre d'images privé déjà configuré et accessible",
+    "Aucun changement majeur du code métier pendant la migration",
+    "Budget suffisant pour les licences éventuelles d'observabilité"
+  ],
+  "confidence": 0.8,
+  "total_estimate_hours": 402.0
+}

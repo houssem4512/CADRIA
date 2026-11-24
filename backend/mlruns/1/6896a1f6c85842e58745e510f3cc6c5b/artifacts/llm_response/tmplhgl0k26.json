@@ -1,0 +1,7 @@
+{
+  "engine": "groq-llm",
+  "model": "openai/gpt-oss-120b",
+  "tokens_in": 1522,
+  "tokens_out": 5523,
+  "latency_ms": 12489
+}

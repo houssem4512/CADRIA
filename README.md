@@ -261,3 +261,6 @@ de découpage et de pilotage de projets ».
      │    - Notification envoyée au PM           │
      │    - Plan stocké dans PastProject (RAG)   │
      └──────────────────────────────────────────┘
+     http://localhost:8000/api/mlops/dashboard/
+     PS E:\cadria-with-3-agents\backend> mlflow ui --backend-store-uri "sqlite:///E:/cadria-with-3-agents/backend/mlflow.db" --host 
+0.0.0.0 --port 5000

@@ -1,0 +1,546 @@
+{
+  "id": 22,
+  "title": "Plan de découpage — e learning",
+  "summary": "Migrer les applications internes vers une infrastructure conteneurisée, industrialiser les déploiements (GitOps) et mettre en place l'observabilité complète, sans interruption de service.",
+  "tasks": [
+    {
+      "ref": "T-001",
+      "lot": "Infrastructure & Platform",
+      "title": "Provisionner le cluster Kubernetes managé",
+      "description": "Créer le cluster EKS (ou équivalent) via Terraform, configurer le réseau et les IAM.",
+      "type": "TECH",
+      "priority": "HIGH",
+      "estimate_hours": 40,
+      "story_points": 6,
+      "skills": [
+        "Kubernetes",
+        "Terraform",
+        "AWS"
+      ],
+      "acceptance_criteria": [
+        "Cluster créé dans la région cible",
+        "VPC et sous-réseaux configurés",
+        "Accès RBAC fonctionnel et documenté"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 1 · Fondations"
+    },
+    {
+      "ref": "T-002",
+      "lot": "Infrastructure & Platform",
+      "title": "Installer la chaîne CI de base",
+      "description": "Configurer GitLab CI (ou Jenkins) pour builder les images Docker et exécuter les tests unitaires.",
+      "type": "TECH",
+      "priority": "HIGH",
+      "estimate_hours": 30,
+      "story_points": 4,
+      "skills": [
+        "GitLab CI",
+        "Docker"
+      ],
+      "acceptance_criteria": [
+        "Pipeline déclenché sur push",
+        "Image Docker générée et poussée",
+        "Tests unitaires exécutés avec succès"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 1 · Fondations"
+    },
+    {
+      "ref": "T-003",
+      "lot": "Infrastructure & Platform",
+      "title": "Définir le dépôt de Helm charts et conventions",
+      "description": "Créer un repository Git dédié aux charts, établir les bonnes pratiques de versionning.",
+      "type": "DOC",
+      "priority": "MEDIUM",
+      "estimate_hours": 20,
+      "story_points": 3,
+      "skills": [
+        "Helm",
+        "YAML"
+      ],
+      "acceptance_criteria": [
+        "Repo Git créé",
+        "Convention de nommage documentée",
+        "Exemple de chart fonctionnel validé par l'équipe"
+      ],
+      "risk_score": 15,
+      "sprint": "Sprint 1 · Fondations"
+    },
+    {
+      "ref": "T-004",
+      "lot": "Infrastructure & Platform",
+      "title": "Sécuriser le cluster (RBAC, NetworkPolicies)",
+      "description": "Mettre en place les rôles, bindings et politiques réseau pour limiter les accès.",
+      "type": "TECH",
+      "priority": "MEDIUM",
+      "estimate_hours": 30,
+      "story_points": 4,
+      "skills": [
+        "Kubernetes",
+        "RBAC",
+        "NetworkPolicy"
+      ],
+      "acceptance_criteria": [
+        "Roles et bindings appliqués",
+        "NetworkPolicies bloquant le trafic non autorisé",
+        "Scan de conformité passé"
+      ],
+      "risk_score": 35,
+      "sprint": "Sprint 2 · Socle"
+    },
+    {
+      "ref": "T-005",
+      "lot": "Application Containerisation",
+      "title": "Audit des applications et stratégie de containerisation",
+      "description": "Analyser les services existants, choisir les images de base et définir les templates Dockerfile.",
+      "type": "SPIKE",
+      "priority": "HIGH",
+      "estimate_hours": 25,
+      "story_points": 4,
+      "skills": [
+        "Docker",
+        "Linux"
+      ],
+      "acceptance_criteria": [
+        "Inventaire complet des services",
+        "Base image sélectionnée pour chaque service",
+        "Templates Dockerfile validés par l'équipe"
+      ],
+      "risk_score": 25,
+      "sprint": "Sprint 1 · Fondations"
+    },
+    {
+      "ref": "T-006",
+      "lot": "Application Containerisation",
+      "title": "Créer Dockerfile pour Service A",
+      "description": "Écrire, tester et optimiser le Dockerfile du service A (Node.js).",
+      "type": "FEATURE",
+      "priority": "MEDIUM",
+      "estimate_hours": 30,
+      "story_points": 4,
+      "skills": [
+        "Docker",
+        "Node.js"
+      ],
+      "acceptance_criteria": [
+        "Dockerfile build sans erreur",
+        "Image passe le lint Docker",
+        "Tests unitaires s'exécutent dans le conteneur"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 2 · Socle"
+    },
+    {
+      "ref": "T-007",
+      "lot": "Application Containerisation",
+      "title": "Créer Dockerfile pour Service B",
+      "description": "Écrire, tester et optimiser le Dockerfile du service B (Python).",
+      "type": "FEATURE",
+      "priority": "MEDIUM",
+      "estimate_hours": 30,
+      "story_points": 4,
+      "skills": [
+        "Docker",
+        "Python"
+      ],
+      "acceptance_criteria": [
+        "Dockerfile build sans erreur",
+        "Image passe le lint Docker",
+        "Tests unitaires s'exécutent dans le conteneur"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 2 · Socle"
+    },
+    {
+      "ref": "T-008",
+      "lot": "Application Containerisation",
+      "title": "Développer les Helm charts des services",
+      "description": "Créer des charts Helm paramétrables pour chaque service, incluant probes et stratégies de mise à jour.",
+      "type": "FEATURE",
+      "priority": "HIGH",
+      "estimate_hours": 40,
+      "story_points": 6,
+      "skills": [
+        "Helm",
+        "Kubernetes"
+      ],
+      "acceptance_criteria": [
+        "Chart installable via helm install",
+        "Valeurs overrides fonctionnent",
+        "Probes de liveness/readiness configurées"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 2 · Socle"
+    },
+    {
+      "ref": "T-009",
+      "lot": "Application Containerisation",
+      "title": "Pipeline CI pour build & push d'images",
+      "description": "Automatiser la construction d'images et leur push vers le registre privé à chaque merge.",
+      "type": "TECH",
+      "priority": "HIGH",
+      "estimate_hours": 25,
+      "story_points": 4,
+      "skills": [
+        "GitLab CI",
+        "Docker",
+        "Container Registry"
+      ],
+      "acceptance_criteria": [
+        "Pipeline déclenché sur MR",
+        "Image taguée avec version",
+        "Image poussée et disponible dans le registre"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 3 · Accélération"
+    },
+    {
+      "ref": "T-010",
+      "lot": "GitOps Automation",
+      "title": "Installer et configurer ArgoCD",
+      "description": "Déployer ArgoCD dans le cluster, créer le premier projet et connecter le repo GitOps.",
+      "type": "TECH",
+      "priority": "HIGH",
+      "estimate_hours": 30,
+      "story_points": 4,
+      "skills": [
+        "ArgoCD",
+        "Kubernetes"
+      ],
+      "acceptance_criteria": [
+        "ArgoCD UI accessible",
+        "Repo GitOps ajouté",
+        "Application test synchronisée avec succès"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 3 · Accélération"
+    },
+    {
+      "ref": "T-011",
+      "lot": "GitOps Automation",
+      "title": "Définir la structure du repo GitOps et les politiques",
+      "description": "Documenter l'arborescence, la stratégie de branches et le processus de revue.",
+      "type": "DOC",
+      "priority": "MEDIUM",
+      "estimate_hours": 15,
+      "story_points": 2,
+      "skills": [
+        "Git",
+        "ArgoCD"
+      ],
+      "acceptance_criteria": [
+        "Structure du repo décrite",
+        "Stratégie de branche définie",
+        "Processus de PR validé par l'équipe"
+      ],
+      "risk_score": 15,
+      "sprint": "Sprint 3 · Accélération"
+    },
+    {
+      "ref": "T-012",
+      "lot": "GitOps Automation",
+      "title": "Synchronisation automatisée des Helm charts via ArgoCD",
+      "description": "Configurer ArgoCD pour suivre les changements des charts et déployer automatiquement.",
+      "type": "FEATURE",
+      "priority": "HIGH",
+      "estimate_hours": 35,
+      "story_points": 5,
+      "skills": [
+        "Helm",
+        "ArgoCD"
+      ],
+      "acceptance_criteria": [
+        "Modification d'un chart déclenche un sync",
+        "Rollback possible via UI",
+        "Audit des changements enregistré"
+      ],
+      "risk_score": 35,
+      "sprint": "Sprint 3 · Accélération"
+    },
+    {
+      "ref": "T-013",
+      "lot": "GitOps Automation",
+      "title": "Implémenter le déploiement canary avec Argo Rollouts",
+      "description": "Mettre en place des stratégies canary pour les services critiques.",
+      "type": "TECH",
+      "priority": "MEDIUM",
+      "estimate_hours": 30,
+      "story_points": 4,
+      "skills": [
+        "Argo Rollouts",
+        "Kubernetes"
+      ],
+      "acceptance_criteria": [
+        "Canary défini avec étapes de trafic",
+        "Metrics intégrées pour validation",
+        "Rollback automatique en cas d'échec"
+      ],
+      "risk_score": 40,
+      "sprint": "Sprint 4 · Durcissement"
+    },
+    {
+      "ref": "T-014",
+      "lot": "Observabilité & Monitoring",
+      "title": "Déployer la stack Prometheus & Grafana",
+      "description": "Installer Prometheus, Alertmanager et Grafana, configurer le scraping des services.",
+      "type": "TECH",
+      "priority": "HIGH",
+      "estimate_hours": 35,
+      "story_points": 5,
+      "skills": [
+        "Prometheus",
+        "Grafana",
+        "Kubernetes"
+      ],
+      "acceptance_criteria": [
+        "Prometheus collecte les métriques",
+        "Dashboards Grafana créés pour chaque service",
+        "Alertes de base configurées"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 4 · Durcissement"
+    },
+    {
+      "ref": "T-015",
+      "lot": "Observabilité & Monitoring",
+      "title": "Déployer Loki pour l'agrégation des logs",
+      "description": "Installer Loki et configurer la collecte des logs des pods via promtail.",
+      "type": "TECH",
+      "priority": "MEDIUM",
+      "estimate_hours": 20,
+      "story_points": 3,
+      "skills": [
+        "Loki",
+        "Grafana",
+        "Kubernetes"
+      ],
+      "acceptance_criteria": [
+        "Logs des pods centralisés",
+        "Recherche fonctionnelle dans Grafana",
+        "Politiques de rétention appliquées"
+      ],
+      "risk_score": 25,
+      "sprint": "Sprint 4 · Durcissement"
+    },
+    {
+      "ref": "T-016",
+      "lot": "Observabilité & Monitoring",
+      "title": "Déployer Jaeger pour le tracing distribué",
+      "description": "Installer Jaeger, intégrer OpenTelemetry dans les services.",
+      "type": "TECH",
+      "priority": "MEDIUM",
+      "estimate_hours": 20,
+      "story_points": 3,
+      "skills": [
+        "Jaeger",
+        "OpenTelemetry",
+        "Kubernetes"
+      ],
+      "acceptance_criteria": [
+        "Traces générées par les services",
+        "UI Jaeger affiche les spans",
+        "Sampling configuré"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 4 · Durcissement"
+    },
+    {
+      "ref": "T-017",
+      "lot": "Observabilité & Monitoring",
+      "title": "Définir SLOs et règles d'alerte",
+      "description": "Établir les objectifs de service, créer les alertes correspondantes dans Alertmanager.",
+      "type": "DOC",
+      "priority": "HIGH",
+      "estimate_hours": 15,
+      "story_points": 2,
+      "skills": [
+        "SLO",
+        "Prometheus Alertmanager"
+      ],
+      "acceptance_criteria": [
+        "SLOs documentés",
+        "Alert rules implémentées",
+        "Intégration avec PagerDuty testée"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 4 · Durcissement"
+    },
+    {
+      "ref": "T-018",
+      "lot": "Migration & Cutover",
+      "title": "Concevoir le plan de migration zéro downtime",
+      "description": "Définir la stratégie de bascule progressive, les étapes de rollback et les tests de validation.",
+      "type": "SPIKE",
+      "priority": "HIGH",
+      "estimate_hours": 20,
+      "story_points": 3,
+      "skills": [
+        "Kubernetes",
+        "CI/CD",
+        "ArgoCD"
+      ],
+      "acceptance_criteria": [
+        "Plan détaillé validé",
+        "Scénarios de rollback documentés",
+        "Critères de succès définis"
+      ],
+      "risk_score": 40,
+      "sprint": "Sprint 4 · Durcissement"
+    },
+    {
+      "ref": "T-019",
+      "lot": "Migration & Cutover",
+      "title": "Exécuter le déploiement progressif du Service A",
+      "description": "Mettre en production le Service A via canary, monitorer les métriques et valider la stabilité.",
+      "type": "TEST",
+      "priority": "HIGH",
+      "estimate_hours": 30,
+      "story_points": 4,
+      "skills": [
+        "ArgoCD",
+        "Kubernetes",
+        "Prometheus"
+      ],
+      "acceptance_criteria": [
+        "Service A en prod sans incident",
+        "Canary validé selon SLOs",
+        "Rollback fonctionnel testé"
+      ],
+      "risk_score": 35,
+      "sprint": "Sprint 5 · Mise en prod"
+    },
+    {
+      "ref": "T-020",
+      "lot": "Migration & Cutover",
+      "title": "Exécuter le déploiement progressif du Service B",
+      "description": "Mettre en production le Service B via canary, monitorer les métriques et valider la stabilité.",
+      "type": "TEST",
+      "priority": "HIGH",
+      "estimate_hours": 30,
+      "story_points": 4,
+      "skills": [
+        "ArgoCD",
+        "Kubernetes",
+        "Prometheus"
+      ],
+      "acceptance_criteria": [
+        "Service B en prod sans incident",
+        "Canary validé selon SLOs",
+        "Rollback fonctionnel testé"
+      ],
+      "risk_score": 35,
+      "sprint": "Sprint 5 · Mise en prod"
+    },
+    {
+      "ref": "T-021",
+      "lot": "Migration & Cutover",
+      "title": "Tests de charge et validation de performance",
+      "description": "Réaliser des tests de charge (k6) sur les services migrés et comparer aux seuils.",
+      "type": "TEST",
+      "priority": "MEDIUM",
+      "estimate_hours": 25,
+      "story_points": 4,
+      "skills": [
+        "Load Testing",
+        "k6"
+      ],
+      "acceptance_criteria": [
+        "Scénarios de charge exécutés",
+        "Résultats sous les seuils définis",
+        "Rapport de performance partagé"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 5 · Mise en prod"
+    },
+    {
+      "ref": "T-022",
+      "lot": "Migration & Cutover",
+      "title": "Documentation finale et formation des équipes",
+      "description": "Rédiger les runbooks, guides de déploiement et former les équipes opérationnelles.",
+      "type": "DOC",
+      "priority": "MEDIUM",
+      "estimate_hours": 20,
+      "story_points": 3,
+      "skills": [
+        "Documentation",
+        "Confluence"
+      ],
+      "acceptance_criteria": [
+        "Runbooks complétés",
+        "Guide de déploiement publié",
+        "Session de formation réalisée avec feedback positif"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 5 · Mise en prod"
+    },
+    {
+      "ref": "T-023",
+      "lot": "Application Containerisation",
+      "title": "Intégrer le scan de sécurité des images (Trivy)",
+      "description": "Ajouter un job CI qui scanne les images Docker et bloque les builds en cas de vulnérabilités critiques.",
+      "type": "TECH",
+      "priority": "MEDIUM",
+      "estimate_hours": 30,
+      "story_points": 4,
+      "skills": [
+        "Trivy",
+        "CI"
+      ],
+      "acceptance_criteria": [
+        "Scan exécuté à chaque build",
+        "Rapport de vulnérabilités généré",
+        "Build échoue si vulnérabilité > High détectée"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 3 · Accélération"
+    }
+  ],
+  "lots": [
+    {
+      "name": "Infrastructure & Platform",
+      "description": "Provisionnement du cluster Kubernetes, CI de base et sécurisation du socle.",
+      "estimate_hours": 120,
+      "confidence": 0.85,
+      "color": "#1D4ED8",
+      "order": 1
+    },
+    {
+      "name": "Application Containerisation",
+      "description": "Dockerisation des applications internes, création des Helm charts et pipelines d'image.",
+      "estimate_hours": 200,
+      "confidence": 0.84,
+      "color": "#0EA5E9",
+      "order": 2
+    },
+    {
+      "name": "GitOps Automation",
+      "description": "Mise en place d'ArgoCD, flux GitOps et formation des équipes.",
+      "estimate_hours": 180,
+      "confidence": 0.83,
+      "color": "#10B981",
+      "order": 3
+    },
+    {
+      "name": "Observabilité & Monitoring",
+      "description": "Déploiement de la stack observabilité (Prometheus, Grafana, Loki, Jaeger) et alerting.",
+      "estimate_hours": 150,
+      "confidence": 0.82,
+      "color": "#F59E0B",
+      "order": 4
+    },
+    {
+      "name": "Migration & Cutover",
+      "description": "Planification et exécution de la migration sans interruption, validation et documentation.",
+      "estimate_hours": 130,
+      "confidence": 0.81,
+      "color": "#8B5CF6",
+      "order": 5
+    }
+  ],
+  "sprints": [],
+  "risks": [],
+  "assumptions": [],
+  "confidence": 0.7,
+  "total_estimate_hours": 0.0
+}

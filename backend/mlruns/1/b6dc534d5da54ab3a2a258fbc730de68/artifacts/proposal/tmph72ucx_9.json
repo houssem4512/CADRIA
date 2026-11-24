@@ -1,0 +1,669 @@
+{
+  "id": 18,
+  "title": "Plan de d\u00e9coupage \u2014 e learning",
+  "summary": "Migrer les applications internes vers une infrastructure conteneuris\u00e9e, industrialiser les d\u00e9ploiements (GitOps) et mettre en place l'observabilit\u00e9 compl\u00e8te, sans interruption de service.",
+  "tasks": [
+    {
+      "ref": "T-001",
+      "lot": "Infrastructure & Containerisation",
+      "title": "Analyse des applications existantes et d\u00e9finition des conteneurs",
+      "description": "\u00c9tude des d\u00e9pendances, des configurations et r\u00e9daction des sp\u00e9cifications Docker.",
+      "type": "SPIKE",
+      "priority": "HIGH",
+      "estimate_hours": 24.0,
+      "story_points": 3,
+      "skills": [
+        "Docker",
+        "Linux",
+        "Architecture"
+      ],
+      "acceptance_criteria": [
+        "Inventaire complet des services",
+        "Sp\u00e9cifications Docker valid\u00e9es par l'\u00e9quipe",
+        "Documentation partag\u00e9e dans le repo"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 1 \u00b7 Fondations"
+    },
+    {
+      "ref": "T-002",
+      "lot": "Infrastructure & Containerisation",
+      "title": "Cr\u00e9ation des Dockerfiles et images de base",
+      "description": "\u00c9criture des Dockerfiles, construction d'images et stockage dans le registre interne.",
+      "type": "TECH",
+      "priority": "HIGH",
+      "estimate_hours": 40.0,
+      "story_points": 6,
+      "skills": [
+        "Docker",
+        "CI/CD",
+        "Shell"
+      ],
+      "acceptance_criteria": [
+        "Dockerfiles lint\u00e9s et approuv\u00e9s",
+        "Images push\u00e9es dans le registre",
+        "Tests de build automatis\u00e9s passent \u00e0 100\u202f%"
+      ],
+      "risk_score": 25,
+      "sprint": "Sprint 1 \u00b7 Fondations"
+    },
+    {
+      "ref": "T-003",
+      "lot": "Infrastructure & Containerisation",
+      "title": "Mise en place du cluster Kubernetes (dev)",
+      "description": "Provisionnement d'un cluster Kubernetes en environnement de d\u00e9veloppement via Terraform.",
+      "type": "TECH",
+      "priority": "HIGH",
+      "estimate_hours": 48.0,
+      "story_points": 7,
+      "skills": [
+        "Kubernetes",
+        "Terraform",
+        "AWS"
+      ],
+      "acceptance_criteria": [
+        "Cluster op\u00e9rationnel avec acc\u00e8s kubectl",
+        "Network policies appliqu\u00e9es",
+        "Documentation d'acc\u00e8s et de gestion"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 1 \u00b7 Fondations"
+    },
+    {
+      "ref": "T-004",
+      "lot": "Infrastructure & Containerisation",
+      "title": "Configuration du r\u00e9seau et des ingress",
+      "description": "D\u00e9finition des services, ingress, TLS et r\u00e8gles de routage.",
+      "type": "TECH",
+      "priority": "MEDIUM",
+      "estimate_hours": 32.0,
+      "story_points": 5,
+      "skills": [
+        "Kubernetes",
+        "Ingress",
+        "TLS"
+      ],
+      "acceptance_criteria": [
+        "Ingress fonctionnels pour les services test",
+        "Certificats TLS provisionn\u00e9s via cert-manager",
+        "Tests de connectivit\u00e9 r\u00e9ussis"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 1 \u00b7 Fondations"
+    },
+    {
+      "ref": "T-005",
+      "lot": "Infrastructure & Containerisation",
+      "title": "Tests de d\u00e9ploiement de services simples",
+      "description": "D\u00e9ploiement d\u2019une application hello\u2011world pour valider le pipeline CI/CD.",
+      "type": "TEST",
+      "priority": "MEDIUM",
+      "estimate_hours": 24.0,
+      "story_points": 3,
+      "skills": [
+        "Kubernetes",
+        "GitHub Actions",
+        "Helm"
+      ],
+      "acceptance_criteria": [
+        "Application d\u00e9ploy\u00e9e en dev",
+        "Rollback fonctionnel",
+        "Logs accessibles via Loki"
+      ],
+      "risk_score": 15,
+      "sprint": "Sprint 1 \u00b7 Fondations"
+    },
+    {
+      "ref": "T-006",
+      "lot": "GitOps & Deployment Automation",
+      "title": "D\u00e9finition de la strat\u00e9gie GitOps et choix d\u2019ArgoCD",
+      "description": "Analyse des besoins, s\u00e9lection d\u2019ArgoCD et r\u00e9daction des conventions Git.",
+      "type": "SPIKE",
+      "priority": "HIGH",
+      "estimate_hours": 16.0,
+      "story_points": 2,
+      "skills": [
+        "GitOps",
+        "ArgoCD",
+        "DevOps"
+      ],
+      "acceptance_criteria": [
+        "Document de strat\u00e9gie valid\u00e9",
+        "ArgoCD install\u00e9 en dev",
+        "Workflow de PR \u2192 sync test\u00e9"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 1 \u00b7 Fondations"
+    },
+    {
+      "ref": "T-007",
+      "lot": "GitOps & Deployment Automation",
+      "title": "Cr\u00e9ation des Helm charts pour chaque service",
+      "description": "Standardisation des d\u00e9ploiements via Helm, cr\u00e9ation de valeurs par environnement.",
+      "type": "TECH",
+      "priority": "HIGH",
+      "estimate_hours": 48.0,
+      "story_points": 7,
+      "skills": [
+        "Helm",
+        "Kubernetes",
+        "YAML"
+      ],
+      "acceptance_criteria": [
+        "Helm charts versionn\u00e9s",
+        "Installation test\u00e9e en dev et staging",
+        "Linting Helm pass\u00e9"
+      ],
+      "risk_score": 25,
+      "sprint": "Sprint 1 \u00b7 Fondations"
+    },
+    {
+      "ref": "T-008",
+      "lot": "GitOps & Deployment Automation",
+      "title": "Mise en place du pipeline CI (GitHub Actions)",
+      "description": "CI automatis\u00e9e : build Docker, scan vuln, push image, mise \u00e0 jour du chart.",
+      "type": "TECH",
+      "priority": "MEDIUM",
+      "estimate_hours": 40.0,
+      "story_points": 6,
+      "skills": [
+        "GitHub Actions",
+        "Docker",
+        "Security Scanning"
+      ],
+      "acceptance_criteria": [
+        "Pipeline d\u00e9clench\u00e9 sur chaque PR",
+        "Image sign\u00e9e et pouss\u00e9e",
+        "\u00c9chec du pipeline en cas de vuln\u00e9rabilit\u00e9 critique"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 2 \u00b7 Acc\u00e9l\u00e9ration"
+    },
+    {
+      "ref": "T-009",
+      "lot": "GitOps & Deployment Automation",
+      "title": "Int\u00e9gration d\u2019ArgoCD pour d\u00e9ploiement automatis\u00e9",
+      "description": "Connexion d\u2019ArgoCD aux repos Helm, d\u00e9finition des applications et sync automatis\u00e9.",
+      "type": "FEATURE",
+      "priority": "HIGH",
+      "estimate_hours": 32.0,
+      "story_points": 5,
+      "skills": [
+        "ArgoCD",
+        "Helm",
+        "Kubernetes"
+      ],
+      "acceptance_criteria": [
+        "Applications ArgoCD cr\u00e9\u00e9es",
+        "D\u00e9ploiement auto\u2011sync en dev",
+        "Rollback via ArgoCD fonctionnel"
+      ],
+      "risk_score": 25,
+      "sprint": "Sprint 2 \u00b7 Acc\u00e9l\u00e9ration"
+    },
+    {
+      "ref": "T-010",
+      "lot": "GitOps & Deployment Automation",
+      "title": "Tests de promotion d\u2019environnement (dev\u2192staging)",
+      "description": "Validation du flux de promotion des manifests entre les environnements.",
+      "type": "TEST",
+      "priority": "MEDIUM",
+      "estimate_hours": 24.0,
+      "story_points": 3,
+      "skills": [
+        "ArgoCD",
+        "Git",
+        "Kubernetes"
+      ],
+      "acceptance_criteria": [
+        "Promotion r\u00e9ussie sans perte de configuration",
+        "Audit des changements visible dans ArgoCD",
+        "Rollback possible en cas d\u2019\u00e9chec"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 2 \u00b7 Acc\u00e9l\u00e9ration"
+    },
+    {
+      "ref": "T-011",
+      "lot": "Observabilit\u00e9 & Monitoring",
+      "title": "S\u00e9lection des outils d\u2019observabilit\u00e9",
+      "description": "\u00c9valuation de Prometheus, Grafana, Loki, Jaeger et d\u00e9cision sur la stack finale.",
+      "type": "SPIKE",
+      "priority": "MEDIUM",
+      "estimate_hours": 12.0,
+      "story_points": 2,
+      "skills": [
+        "Monitoring",
+        "Logging",
+        "Tracing"
+      ],
+      "acceptance_criteria": [
+        "Comparatif des outils r\u00e9alis\u00e9",
+        "Choix valid\u00e9 par l'architecte",
+        "Plan d'installation d\u00e9fini"
+      ],
+      "risk_score": 15,
+      "sprint": "Sprint 1 \u00b7 Fondations"
+    },
+    {
+      "ref": "T-012",
+      "lot": "Observabilit\u00e9 & Monitoring",
+      "title": "D\u00e9ploiement de Prometheus et Grafana sur le cluster",
+      "description": "Installation via Helm, configuration du service\u2011monitoring et des dashboards de base.",
+      "type": "TECH",
+      "priority": "MEDIUM",
+      "estimate_hours": 32.0,
+      "story_points": 5,
+      "skills": [
+        "Helm",
+        "Prometheus",
+        "Grafana"
+      ],
+      "acceptance_criteria": [
+        "Prometheus scrape les pods",
+        "Grafana accessible avec tableau de bord initial",
+        "Alertmanager configur\u00e9 avec une alerte test"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 1 \u00b7 Fondations"
+    },
+    {
+      "ref": "T-013",
+      "lot": "Observabilit\u00e9 & Monitoring",
+      "title": "Configuration des exporters et alerting",
+      "description": "D\u00e9ploiement des exporters node, kube\u2011state\u2011metrics et cr\u00e9ation de r\u00e8gles d\u2019alerte.",
+      "type": "TECH",
+      "priority": "MEDIUM",
+      "estimate_hours": 40.0,
+      "story_points": 6,
+      "skills": [
+        "Prometheus",
+        "Exporters",
+        "Alertmanager"
+      ],
+      "acceptance_criteria": [
+        "Exporters collectent m\u00e9triques",
+        "Alertes critiques d\u00e9clench\u00e9es en test",
+        "Documentation des r\u00e8gles d\u2019alerte"
+      ],
+      "risk_score": 25,
+      "sprint": "Sprint 2 \u00b7 Acc\u00e9l\u00e9ration"
+    },
+    {
+      "ref": "T-014",
+      "lot": "Observabilit\u00e9 & Monitoring",
+      "title": "Mise en place de la collecte de logs avec Loki",
+      "description": "Installation de Loki, promtail et configuration du pipeline logs \u2192 Grafana.",
+      "type": "TECH",
+      "priority": "MEDIUM",
+      "estimate_hours": 24.0,
+      "story_points": 3,
+      "skills": [
+        "Loki",
+        "Promtail",
+        "Grafana"
+      ],
+      "acceptance_criteria": [
+        "Logs des pods visibles dans Grafana",
+        "Recherche de logs fonctionnelle",
+        "R\u00e9tention configur\u00e9e"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 2 \u00b7 Acc\u00e9l\u00e9ration"
+    },
+    {
+      "ref": "T-015",
+      "lot": "Observabilit\u00e9 & Monitoring",
+      "title": "Tracing avec Jaeger et instrumentation des services",
+      "description": "D\u00e9ploiement de Jaeger, ajout d\u2019instrumentation OpenTelemetry aux services conteneuris\u00e9s.",
+      "type": "TECH",
+      "priority": "MEDIUM",
+      "estimate_hours": 32.0,
+      "story_points": 5,
+      "skills": [
+        "Jaeger",
+        "OpenTelemetry",
+        "JavaScript"
+      ],
+      "acceptance_criteria": [
+        "Traces g\u00e9n\u00e9r\u00e9es pour les requ\u00eates critiques",
+        "Vue des traces dans UI Jaeger",
+        "Documentation d\u2019instrumentation"
+      ],
+      "risk_score": 25,
+      "sprint": "Sprint 2 \u00b7 Acc\u00e9l\u00e9ration"
+    },
+    {
+      "ref": "T-016",
+      "lot": "Observabilit\u00e9 & Monitoring",
+      "title": "Tableaux de bord et alertes de production",
+      "description": "Cr\u00e9ation de dashboards m\u00e9tier et d\u00e9finition d\u2019alertes SLO/SLA.",
+      "type": "DOC",
+      "priority": "LOW",
+      "estimate_hours": 24.0,
+      "story_points": 3,
+      "skills": [
+        "Grafana",
+        "Prometheus",
+        "SLO"
+      ],
+      "acceptance_criteria": [
+        "Dashboard partag\u00e9 avec l\u2019\u00e9quipe ops",
+        "Alertes SLO configur\u00e9es",
+        "Guide d\u2019utilisation r\u00e9dig\u00e9"
+      ],
+      "risk_score": 10,
+      "sprint": "Sprint 2 \u00b7 Acc\u00e9l\u00e9ration"
+    },
+    {
+      "ref": "T-017",
+      "lot": "Migration & Cutover Strategy",
+      "title": "Plan de migration progressive sans interruption",
+      "description": "Conception d\u2019une strat\u00e9gie blue\u2011green / canary, d\u00e9finition des \u00e9tapes de cut\u2011over.",
+      "type": "SPIKE",
+      "priority": "HIGH",
+      "estimate_hours": 20.0,
+      "story_points": 3,
+      "skills": [
+        "Kubernetes",
+        "GitOps",
+        "Release Management"
+      ],
+      "acceptance_criteria": [
+        "Plan d\u00e9taill\u00e9 valid\u00e9 par le PO",
+        "Checklist de validation post\u2011d\u00e9ploiement",
+        "Sc\u00e9narios de rollback document\u00e9s"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 2 \u00b7 Acc\u00e9l\u00e9ration"
+    },
+    {
+      "ref": "T-018",
+      "lot": "Migration & Cutover Strategy",
+      "title": "Containerisation des services critiques et tests de charge",
+      "description": "Dockerisation des services \u00e0 fort trafic, ex\u00e9cution de tests de charge en pr\u00e9\u2011production.",
+      "type": "FEATURE",
+      "priority": "HIGH",
+      "estimate_hours": 48.0,
+      "story_points": 7,
+      "skills": [
+        "Docker",
+        "K6",
+        "Performance Testing"
+      ],
+      "acceptance_criteria": [
+        "Images fonctionnelles en pr\u00e9\u2011prod",
+        "Tests de charge atteignent 150\u202f% du pic attendu",
+        "Aucun r\u00e9gressions fonctionnelles d\u00e9tect\u00e9es"
+      ],
+      "risk_score": 35,
+      "sprint": "Sprint 3 \u00b7 Mise en prod"
+    },
+    {
+      "ref": "T-019",
+      "lot": "Migration & Cutover Strategy",
+      "title": "D\u00e9ploiement blue\u2011green des services migr\u00e9s",
+      "description": "Mise en \u0153uvre du pattern blue\u2011green via ArgoCD, bascule du trafic et validation.",
+      "type": "TECH",
+      "priority": "HIGH",
+      "estimate_hours": 40.0,
+      "story_points": 6,
+      "skills": [
+        "ArgoCD",
+        "Kubernetes",
+        "Service Mesh"
+      ],
+      "acceptance_criteria": [
+        "Version blue et green d\u00e9ploy\u00e9es simultan\u00e9ment",
+        "Bascule du trafic sans erreur 5xx",
+        "Rollback possible en moins de 5\u202fminutes"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 3 \u00b7 Mise en prod"
+    },
+    {
+      "ref": "T-020",
+      "lot": "Migration & Cutover Strategy",
+      "title": "Gestion du rollback et validation post\u2011d\u00e9ploiement",
+      "description": "Automatisation du rollback via ArgoCD et mise en place de tests de validation post\u2011cutover.",
+      "type": "TEST",
+      "priority": "HIGH",
+      "estimate_hours": 32.0,
+      "story_points": 5,
+      "skills": [
+        "ArgoCD",
+        "Postman",
+        "Scripting"
+      ],
+      "acceptance_criteria": [
+        "Rollback d\u00e9clench\u00e9 automatiquement en cas d\u2019\u00e9chec",
+        "Suite de tests de sant\u00e9 ex\u00e9cut\u00e9e avec succ\u00e8s",
+        "Rapport de validation g\u00e9n\u00e9r\u00e9"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 3 \u00b7 Mise en prod"
+    },
+    {
+      "ref": "T-021",
+      "lot": "Migration & Cutover Strategy",
+      "title": "Monitoring de la latence pendant cut\u2011over",
+      "description": "Mise en place de m\u00e9triques de latence sp\u00e9cifiques et alertes pendant la bascule.",
+      "type": "TEST",
+      "priority": "MEDIUM",
+      "estimate_hours": 24.0,
+      "story_points": 3,
+      "skills": [
+        "Prometheus",
+        "Grafana",
+        "Alertmanager"
+      ],
+      "acceptance_criteria": [
+        "M\u00e9triques de latence collect\u00e9es en temps r\u00e9el",
+        "Alertes configur\u00e9es pour d\u00e9passement de seuil",
+        "Dashboard de suivi de cut\u2011over disponible"
+      ],
+      "risk_score": 20,
+      "sprint": "Sprint 3 \u00b7 Mise en prod"
+    },
+    {
+      "ref": "T-022",
+      "lot": "Documentation & Training",
+      "title": "R\u00e9daction des runbooks GitOps",
+      "description": "Cr\u00e9ation de proc\u00e9dures d\u00e9taill\u00e9es pour la gestion du GitOps (sync, rollback, promotion).",
+      "type": "DOC",
+      "priority": "MEDIUM",
+      "estimate_hours": 24.0,
+      "story_points": 3,
+      "skills": [
+        "Markdown",
+        "GitOps",
+        "Technical Writing"
+      ],
+      "acceptance_criteria": [
+        "Runbook versionn\u00e9 dans le repo docs",
+        "Valid\u00e9 par l'\u00e9quipe ops",
+        "Couverture des sc\u00e9narios de secours"
+      ],
+      "risk_score": 10,
+      "sprint": "Sprint 3 \u00b7 Mise en prod"
+    },
+    {
+      "ref": "T-023",
+      "lot": "Documentation & Training",
+      "title": "Guide d\u2019observabilit\u00e9 pour les \u00e9quipes dev",
+      "description": "Documentation des m\u00e9triques, dashboards et bonnes pratiques d\u2019observabilit\u00e9.",
+      "type": "DOC",
+      "priority": "LOW",
+      "estimate_hours": 20.0,
+      "story_points": 3,
+      "skills": [
+        "Grafana",
+        "Prometheus",
+        "Writing"
+      ],
+      "acceptance_criteria": [
+        "Guide publi\u00e9 dans Confluence",
+        "Exemples de requ\u00eates PromQL fournis",
+        "Feedback positif de 2 d\u00e9veloppeurs pilotes"
+      ],
+      "risk_score": 10,
+      "sprint": "Sprint 3 \u00b7 Mise en prod"
+    },
+    {
+      "ref": "T-024",
+      "lot": "Documentation & Training",
+      "title": "Formation interne (workshop) sur la nouvelle plateforme",
+      "description": "Organisation d\u2019un atelier de 2\u202fjours pour les d\u00e9veloppeurs et ops.",
+      "type": "DOC",
+      "priority": "LOW",
+      "estimate_hours": 32.0,
+      "story_points": 5,
+      "skills": [
+        "Training",
+        "Kubernetes",
+        "GitOps"
+      ],
+      "acceptance_criteria": [
+        "Agenda valid\u00e9 et partag\u00e9",
+        "Sessions enregistr\u00e9es disponibles",
+        "Questionnaire de satisfaction \u2265\u202f4/5"
+      ],
+      "risk_score": 15,
+      "sprint": "Sprint 3 \u00b7 Mise en prod"
+    },
+    {
+      "ref": "T-025",
+      "lot": "Documentation & Training",
+      "title": "Mise \u00e0 jour de la documentation architecture",
+      "description": "Actualisation des diagrammes d\u2019architecture pour refl\u00e9ter la stack conteneuris\u00e9e.",
+      "type": "DOC",
+      "priority": "LOW",
+      "estimate_hours": 16.0,
+      "story_points": 2,
+      "skills": [
+        "Draw.io",
+        "Architecture",
+        "Writing"
+      ],
+      "acceptance_criteria": [
+        "Diagrammes r\u00e9vis\u00e9s dans le wiki",
+        "Valid\u00e9s par l'architecte",
+        "Versionnage appliqu\u00e9"
+      ],
+      "risk_score": 5,
+      "sprint": "Sprint 3 \u00b7 Mise en prod"
+    },
+    {
+      "ref": "T-026",
+      "lot": "Documentation & Training",
+      "title": "Audit de conformit\u00e9 et s\u00e9curit\u00e9 post\u2011migration",
+      "description": "V\u00e9rification que les conteneurs respectent les politiques de s\u00e9curit\u00e9 et conformit\u00e9.",
+      "type": "TEST",
+      "priority": "MEDIUM",
+      "estimate_hours": 24.0,
+      "story_points": 3,
+      "skills": [
+        "CIS Benchmarks",
+        "Kubernetes Security",
+        "Audit"
+      ],
+      "acceptance_criteria": [
+        "Rapport d\u2019audit sans findings critiques",
+        "Rem\u00e9diations appliqu\u00e9es",
+        "Sign\u2011off de la DSI"
+      ],
+      "risk_score": 30,
+      "sprint": "Sprint 3 \u00b7 Mise en prod"
+    }
+  ],
+  "lots": [
+    {
+      "name": "Infrastructure & Containerisation",
+      "description": "Mise en place du cluster Kubernetes, cr\u00e9ation des images Docker et configuration r\u00e9seau.",
+      "estimate_hours": 168.0,
+      "confidence": 0.86,
+      "color": "#2563EB",
+      "order": 1
+    },
+    {
+      "name": "GitOps & Deployment Automation",
+      "description": "D\u00e9finition et impl\u00e9mentation de la cha\u00eene GitOps avec ArgoCD et pipelines CI.",
+      "estimate_hours": 160.0,
+      "confidence": 0.85,
+      "color": "#0EA5E9",
+      "order": 2
+    },
+    {
+      "name": "Observabilit\u00e9 & Monitoring",
+      "description": "D\u00e9ploiement et configuration de la stack d\u2019observabilit\u00e9 (Prometheus, Grafana, Loki, Jaeger).",
+      "estimate_hours": 164.0,
+      "confidence": 0.84,
+      "color": "#10B981",
+      "order": 3
+    },
+    {
+      "name": "Migration & Cutover Strategy",
+      "description": "Planification et ex\u00e9cution de la migration progressive des applications avec z\u00e9ro interruption.",
+      "estimate_hours": 164.0,
+      "confidence": 0.83,
+      "color": "#F59E0B",
+      "order": 4
+    },
+    {
+      "name": "Documentation & Training",
+      "description": "R\u00e9daction des runbooks, guides d\u2019observabilit\u00e9 et formation des \u00e9quipes.",
+      "estimate_hours": 116.0,
+      "confidence": 0.82,
+      "color": "#8B5CF6",
+      "order": 5
+    }
+  ],
+  "sprints": [
+    {
+      "name": "Sprint 1 \u00b7 Fondations",
+      "goal": "Mise en place du socle infra, GitOps initial et s\u00e9lection des outils d\u2019observabilit\u00e9",
+      "capacity_hours": 280.0
+    },
+    {
+      "name": "Sprint 2 \u00b7 Acc\u00e9l\u00e9ration",
+      "goal": "Finalisation du GitOps, d\u00e9ploiement complet de l\u2019observabilit\u00e9 et pr\u00e9paration du cut\u2011over",
+      "capacity_hours": 280.0
+    },
+    {
+      "name": "Sprint 3 \u00b7 Mise en prod",
+      "goal": "Migration progressive, documentation, formation et audit de conformit\u00e9",
+      "capacity_hours": 280.0
+    }
+  ],
+  "risks": [
+    {
+      "category": "DELAY",
+      "title": "Sous\u2011estimation du temps de migration des services critiques",
+      "score": 35
+    },
+    {
+      "category": "QUALITY",
+      "title": "Risque de r\u00e9gression fonctionnelle lors du basculement blue\u2011green",
+      "score": 30
+    },
+    {
+      "category": "BLOCKER",
+      "title": "Probl\u00e8me d\u2019acc\u00e8s au registre Docker interne",
+      "score": 40
+    },
+    {
+      "category": "BUDGET",
+      "title": "Co\u00fbt suppl\u00e9mentaire li\u00e9 \u00e0 l\u2019achat de licences observabilit\u00e9",
+      "score": 20
+    }
+  ],
+  "assumptions": [
+    "\u00c9quipe compos\u00e9e de 4 membres (2 d\u00e9veloppeurs, 1 ing\u00e9nieur DevOps, 1 QA) disponibles \u00e0 plein temps (35\u202fh/semaine).",
+    "Cluster Kubernetes d\u00e9j\u00e0 provisionn\u00e9 en environnement de test.",
+    "Acc\u00e8s au registre Docker interne et \u00e0 GitHub Actions.",
+    "Aucun changement majeur de p\u00e9rim\u00e8tre pendant les 6\u202fsemaines du projet.",
+    "Les applications internes sont compatibles avec la containerisation sans refactorisation majeure."
+  ],
+  "confidence": 0.84,
+  "total_estimate_hours": 772.0
+}

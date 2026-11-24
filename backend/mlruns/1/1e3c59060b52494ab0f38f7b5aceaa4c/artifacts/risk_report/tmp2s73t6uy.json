@@ -1,0 +1,89 @@
+{
+  "risk_score": 21.0,
+  "project_health": "GREEN",
+  "alerts": [],
+  "task_scores": [
+    {
+      "task_id": 301,
+      "task_title": "Configurer le réseau, ingress et TLS",
+      "risk_score": 0.16,
+      "factors": [
+        {
+          "label": "overdue_days",
+          "weight": 0.1
+        }
+      ]
+    },
+    {
+      "task_id": 302,
+      "task_title": "Intégrer la gestion des secrets",
+      "risk_score": 0.16,
+      "factors": [
+        {
+          "label": "overdue_days",
+          "weight": 0.1
+        }
+      ]
+    },
+    {
+      "task_id": 306,
+      "task_title": "Scanning de sécurité automatisé",
+      "risk_score": 0.1,
+      "factors": []
+    },
+    {
+      "task_id": 309,
+      "task_title": "Créer les environnements dev, staging, prod",
+      "risk_score": 0.1,
+      "factors": []
+    },
+    {
+      "task_id": 311,
+      "task_title": "Intégrer Loki pour l'agrégation des logs",
+      "risk_score": 0.1,
+      "factors": []
+    },
+    {
+      "task_id": 312,
+      "task_title": "Mettre en place le tracing OpenTelemetry",
+      "risk_score": 0.1,
+      "factors": []
+    },
+    {
+      "task_id": 313,
+      "task_title": "Définir les SLO et règles d'alerte",
+      "risk_score": 0.1,
+      "factors": []
+    },
+    {
+      "task_id": 318,
+      "task_title": "Rédiger les runbooks opérationnels",
+      "risk_score": 0.1,
+      "factors": []
+    },
+    {
+      "task_id": 319,
+      "task_title": "Formation des équipes sur GitOps & observabilité",
+      "risk_score": 0.1,
+      "factors": []
+    },
+    {
+      "task_id": 320,
+      "task_title": "Finaliser la documentation projet et la passation",
+      "risk_score": 0.1,
+      "factors": []
+    }
+  ],
+  "comment_stats": {
+    "total": 0,
+    "with_signals": 0,
+    "by_signal": {
+      "blocked": 0,
+      "waiting": 0,
+      "regression": 0,
+      "scope_creep": 0
+    },
+    "negative_count": 0,
+    "positive_count": 0
+  }
+}

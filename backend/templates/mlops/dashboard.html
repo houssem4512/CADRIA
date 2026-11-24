@@ -1,0 +1,354 @@
+Dashboard · HTML
+
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cadria MLOps — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ECEFEA; --card:#fff; --text:#142019; --text-muted:#6B776F; --border:#E6EAE4;
+  --forest:#1E3A2B; --lime:#C6F26B; --lime-soft:#EEFAD3;
+  --primary:#2F7D4F; --primary-dark:#1E5A38; --primary-light:#EAF4EE;
+  --green:#1FA971; --green-bg:#E7F6EE;
+  --amber:#E8A317; --amber-bg:#FDF4DF;
+  --red:#E5484D; --red-bg:#FCE9EA;
+  --sky:#2F8FD8; --sky-bg:#E5F1FB;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.45}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--forest);outline-offset:2px}
+ 
+/* Sidebar */
+.sidebar{position:fixed;left:16px;top:16px;bottom:16px;width:228px;background:var(--card);border:1px solid var(--border);border-radius:24px;padding:20px 14px;display:flex;flex-direction:column;overflow-y:auto}
+.sidebar-logo{display:flex;align-items:center;gap:10px;padding:0 8px 22px;font-size:19px;font-weight:800;letter-spacing:-.3px}
+.sidebar-logo span{width:32px;height:32px;border-radius:10px;background:var(--lime);color:var(--forest);display:grid;place-items:center;font-size:15px;font-weight:800}
+.nav-section{padding:14px 10px 6px;font-size:12px;font-weight:600;color:var(--text-muted)}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:2px;border-radius:12px;font-size:14px;font-weight:500;color:#44514A;text-decoration:none;transition:background .15s}
+.nav-item:hover{background:var(--bg)}
+.nav-item.active{background:var(--lime);color:var(--forest);font-weight:700}
+.nav-item .icon{font-size:16px;width:20px;text-align:center}
+.side-card{margin-top:auto;background:var(--forest);color:#fff;border-radius:18px;padding:16px}
+.side-card b{display:block;font-size:14px;margin-bottom:4px}
+.side-card p{font-size:12px;color:#B9C9BF;margin-bottom:12px}
+.side-card a{display:block;text-align:center;background:var(--lime);color:var(--forest);font-weight:700;font-size:13px;padding:9px;border-radius:10px;text-decoration:none}
+ 
+/* Main */
+.main{margin-left:260px;padding:20px 24px 24px 8px;max-width:1500px}
+.header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+.header h2{font-size:26px;font-weight:800;letter-spacing:-.6px}
+.header p{font-size:13px;color:var(--text-muted);margin-top:2px}
+.header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.live{display:inline-flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:999px;padding:8px 14px;font-size:12px;font-weight:600;color:var(--text-muted)}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px var(--green-bg)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:999px;font-size:13px;font-weight:600;text-decoration:none;border:1px solid transparent;transition:all .2s}
+.btn-primary{background:var(--forest);color:#fff}
+.btn-primary:hover{background:#12271c}
+.btn-outline{background:var(--card);border-color:var(--border);color:var(--text)}
+.btn-outline:hover{border-color:var(--forest)}
+ 
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px}
+@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(2,1fr)}}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:22px;padding:20px}
+.kpi-card .top{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.kpi-icon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-size:18px}
+.kpi-label{font-size:13px;font-weight:600;color:var(--text-muted)}
+.kpi-value{font-size:36px;font-weight:800;line-height:1;letter-spacing:-1px}
+.kpi-unit{font-size:14px;font-weight:600;color:var(--text-muted);letter-spacing:0}
+.kpi-sub{font-size:12px;color:var(--text-muted);margin-top:8px}
+.kpi-card.hero{background:var(--lime);border-color:var(--lime)}
+.hero .kpi-icon{background:rgba(255,255,255,.6)!important;color:var(--forest)!important}
+.hero .kpi-label,.hero .kpi-unit,.hero .kpi-sub{color:#3C5A1E}
+.hero .kpi-value{color:var(--forest);font-size:44px}
+ 
+/* Grids and cards */
+.section{display:grid;gap:16px;margin-bottom:16px}
+.section-2{grid-template-columns:1.1fr .9fr}
+.section-3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:1100px){.section-2,.section-3{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:22px;padding:20px}
+.card-title{font-size:16px;font-weight:700;letter-spacing:-.2px}
+.card-sub{font-size:12px;color:var(--text-muted);margin:2px 0 16px}
+ 
+/* Agents */
+.agent-card{display:flex;flex-direction:column;gap:16px}
+.agent-top{display:flex;align-items:center;gap:12px}
+.agent-avatar{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:18px}
+.agent-name{font-size:15px;font-weight:700}
+.agent-meta{font-size:12px;color:var(--text-muted)}
+.ring{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--border) 0)}
+.ring::before{content:"";position:absolute;inset:6px;background:var(--card);border-radius:50%}
+.ring span{position:relative;font-size:12px;font-weight:800}
+.agent-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.agent-stat{text-align:center;padding:10px 6px;border-radius:14px}
+.agent-stat-val{font-size:20px;font-weight:800}
+.agent-stat-lbl{font-size:11px;color:var(--text-muted);font-weight:500}
+ 
+/* Health, tasks */
+.health-bar{display:flex;height:34px;gap:4px;margin:6px 0 14px}
+.health-seg{display:grid;place-items:center;font-size:13px;font-weight:700;color:#fff;border-radius:10px;min-width:30px}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--text-muted);font-weight:500}
+.legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:5px}
+.pills{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pill{padding:12px;border-radius:16px;font-size:12px;font-weight:500;color:var(--text-muted)}
+.pill b{display:block;font-size:22px;font-weight:800;margin-top:2px;color:var(--text)}
+ 
+/* Chart */
+.chart-box{display:flex;align-items:flex-end;gap:8px;height:150px;margin-top:6px;padding-bottom:2px;background:repeating-linear-gradient(to top,transparent 0,transparent 36px,var(--border) 36px,var(--border) 37px)}
+.chart-col{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.chart-stack{display:flex;flex-direction:column-reverse;gap:2px;width:100%;max-width:34px;max-height:118px}
+.chart-bar{width:100%;border-radius:8px;min-height:3px;flex:0 1 auto}
+.chart-x{font-size:10px;color:var(--text-muted);white-space:nowrap;overflow:hidden}
+ 
+/* Table */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 14px;font-size:12px;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border)}
+td{padding:14px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--primary-light)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.badge-success{background:var(--green-bg);color:#116845}
+.badge-danger{background:var(--red-bg);color:#A02226}
+.badge-warning{background:var(--amber-bg);color:#8A5D05}
+.badge-neutral{background:var(--bg);color:var(--text-muted)}
+.badge-info{background:var(--sky-bg);color:#1B5F96}
+.empty{text-align:center;padding:28px;color:var(--text-muted)}
+.footer{text-align:center;font-size:12px;color:var(--text-muted);margin-top:22px}
+.footer a{color:var(--primary-dark);font-weight:600;text-decoration:none}
+ 
+@media(max-width:820px){
+  .sidebar{display:none}
+  .main{margin-left:0;padding:16px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+        <div class="sidebar-logo"><span>C</span> Cadria</div>
+        <div class="nav-section">Monitoring</div>
+        <a href="/api/mlops/dashboard/" class="nav-item active"><span class="icon">📊</span> Dashboard</a>
+        <a href="{{ mlflow_url }}" target="_blank" class="nav-item"><span class="icon">🔬</span> MLflow UI</a>
+        <a href="/api/metrics/" target="_blank" class="nav-item"><span class="icon">📋</span> API</a>
+        <div class="nav-section">Platform</div>
+        <a href="http://localhost:5173/app" class="nav-item"><span class="icon">🏠</span> Cadria</a>
+        <a href="http://localhost:5173/app/projects" class="nav-item"><span class="icon">📁</span> Projets</a>
+        <div class="side-card">
+            <b>Suivi des expériences</b>
+            <p>Comparez vos exécutions et vos métriques dans MLflow.</p>
+            <a href="{{ mlflow_url }}" target="_blank">Ouvrir MLflow</a>
+        </div>
+    </nav>
+ 
+    <!-- MAIN -->
+    <div class="main">
+        <div class="header">
+            <div>
+                <h2>MLOps Dashboard</h2>
+                <p>Suivi des agents, MLflow et métriques en temps réel</p>
+            </div>
+            <div class="header-actions">
+                <span class="live"><i></i>Actualisation toutes les 30 s</span>
+                <a href="{{ mlflow_url }}" target="_blank" class="btn btn-primary">🔬 MLflow</a>
+                <a href="http://localhost:5173/app" class="btn btn-outline">🏠 Cadria</a>
+            </div>
+        </div>
+ 
+        <!-- KPI ROW -->
+        <div class="kpi-row">
+            <div class="kpi-card hero">
+                <div class="top">
+                    <div class="kpi-icon" style="background: var(--primary-light); color: var(--primary);">🤖</div>
+                    <div class="kpi-label">Total Exécutions</div>
+                </div>
+                <div class="kpi-value">{{ agents|length }}<span class="kpi-unit"> agents</span></div>
+                <div class="kpi-sub">{{ task_stats.total }} tâches gérées</div>
+            </div>
+            <div class="kpi-card">
+                <div class="top">
+                    <div class="kpi-icon" style="background: var(--green-bg); color: var(--green);">✅</div>
+                    <div class="kpi-label">Tâches Terminées</div>
+                </div>
+                <div class="kpi-value">{{ task_stats.done }}</div>
+                <div class="kpi-sub">sur {{ task_stats.total }} au total</div>
+            </div>
+            <div class="kpi-card">
+                <div class="top">
+                    <div class="kpi-icon" style="background: #E0F2FE; color: var(--sky);">📌</div>
+                    <div class="kpi-label">Cartes Trello</div>
+                </div>
+                <div class="kpi-value">{{ task_stats.pushed_to_trello }}</div>
+                <div class="kpi-sub">Synchronisées</div>
+            </div>
+            <div class="kpi-card">
+                <div class="top">
+                    <div class="kpi-icon" style="background: var(--red-bg); color: var(--red);">🛡</div>
+                    <div class="kpi-label">Alertes Critiques</div>
+                </div>
+                <div class="kpi-value" style="color: {% if risk_stats.critical > 0 %}var(--red){% else %}var(--green){% endif %};">{{ risk_stats.critical }}</div>
+                <div class="kpi-sub">{{ risk_stats.open }} alertes ouvertes</div>
+            </div>
+        </div>
+ 
+        <!-- AGENT CARDS -->
+        <div class="section section-3">
+            {% for agent in agents %}
+            <div class="card agent-card">
+                <div class="agent-top">
+                    <div class="agent-avatar" style="background: {{ agent.color }}20; color: {{ agent.color }};">
+                        {% if agent.key == "SCOPING" %}🧠{% elif agent.key == "OPS" %}⚙️{% elif agent.key == "RISK" %}🛡️{% else %}🤖{% endif %}
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="agent-name">{{ agent.name }}</div>
+                        <div class="agent-meta">{{ agent.total }} runs, {{ agent.avg_latency_ms }}ms</div>
+                    </div>
+                    <div class="ring" style="--p: {{ agent.success_rate }}; --c: {{ agent.color }};">
+                        <span style="color: {% if agent.success_rate >= 80 %}var(--green){% elif agent.success_rate >= 50 %}var(--amber){% else %}var(--red){% endif %};">{{ agent.success_rate }}%</span>
+                    </div>
+                </div>
+                <div class="agent-row">
+                    <div class="agent-stat" style="background: var(--green-bg);">
+                        <div class="agent-stat-val" style="color: var(--green);">{{ agent.succeeded }}</div>
+                        <div class="agent-stat-lbl">Réussis</div>
+                    </div>
+                    <div class="agent-stat" style="background: var(--red-bg);">
+                        <div class="agent-stat-val" style="color: var(--red);">{{ agent.failed }}</div>
+                        <div class="agent-stat-lbl">Échecs</div>
+                    </div>
+                    <div class="agent-stat" style="background: var(--amber-bg);">
+                        <div class="agent-stat-val" style="color: var(--amber);">{{ agent.skipped }}</div>
+                        <div class="agent-stat-lbl">Ignorés</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+ 
+        <!-- HEALTH + TASKS -->
+        <div class="section section-2">
+            <div class="card">
+                <div class="card-title">Santé des Projets</div>
+                <div class="card-sub">{{ project_health.total }} projets, score moyen {{ project_health.avg_risk_score }}/100</div>
+                <div class="health-bar">
+                    {% if project_health.green %}
+                    <div class="health-seg" style="background: var(--green); width: {% widthratio project_health.green project_health.total 100 %}%;">{{ project_health.green }}</div>
+                    {% endif %}
+                    {% if project_health.amber %}
+                    <div class="health-seg" style="background: var(--amber); width: {% widthratio project_health.amber project_health.total 100 %}%;">{{ project_health.amber }}</div>
+                    {% endif %}
+                    {% if project_health.red %}
+                    <div class="health-seg" style="background: var(--red); width: {% widthratio project_health.red project_health.total 100 %}%;">{{ project_health.red }}</div>
+                    {% endif %}
+                </div>
+                <div class="legend">
+                    <span><span class="legend-dot" style="background: var(--green);"></span>Sain</span>
+                    <span><span class="legend-dot" style="background: var(--amber);"></span>Surveiller</span>
+                    <span><span class="legend-dot" style="background: var(--red);"></span>Critique</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Statut des Tâches</div>
+                <div class="card-sub">{{ task_stats.total }} tâches au total</div>
+                <div class="pills">
+                    <div class="pill" style="background: var(--primary-light);">À faire<b>{{ task_stats.todo }}</b></div>
+                    <div class="pill" style="background: var(--amber-bg);">En cours<b>{{ task_stats.in_progress }}</b></div>
+                    <div class="pill" style="background: var(--green-bg);">Terminées<b style="color: var(--green);">{{ task_stats.done }}</b></div>
+                    <div class="pill" style="background: var(--red-bg);">Bloquées<b style="color: var(--red);">{{ task_stats.blocked }}</b></div>
+                    <div class="pill" style="background: #F1F5F9;">En revue<b>{{ task_stats.review }}</b></div>
+                    <div class="pill" style="background: #E0F2FE;">Trello<b style="color: var(--sky);">{{ task_stats.pushed_to_trello }}</b></div>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- CHART -->
+        {% if timeline %}
+        <div class="card" style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div>
+                    <div class="card-title">Activité des Agents</div>
+                    <div class="card-sub">Exécutions par jour</div>
+                </div>
+                <div class="legend">
+                    <span><span class="legend-dot" style="background: var(--primary);"></span>Scoping</span>
+                    <span><span class="legend-dot" style="background: var(--amber);"></span>Ops</span>
+                    <span><span class="legend-dot" style="background: var(--red);"></span>Risk</span>
+                </div>
+            </div>
+            <div class="chart-box">
+                {% for day in timeline %}
+                <div class="chart-col" title="{{ day.day }} : Scoping {{ day.SCOPING|default:0 }}, Ops {{ day.OPS|default:0 }}, Risk {{ day.RISK|default:0 }}">
+                    <div class="chart-stack">
+                        {% if day.RISK %}<div class="chart-bar" style="background: var(--red); height: {% widthratio day.RISK 10 60 %}px;"></div>{% endif %}
+                        {% if day.OPS %}<div class="chart-bar" style="background: var(--amber); height: {% widthratio day.OPS 10 60 %}px;"></div>{% endif %}
+                        {% if day.SCOPING %}<div class="chart-bar" style="background: var(--primary); height: {% widthratio day.SCOPING 10 60 %}px;"></div>{% endif %}
+                    </div>
+                    <div class="chart-x">{{ day.day }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+ 
+        <!-- RECENT RUNS -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div>
+                    <div class="card-title">Exécutions Récentes</div>
+                    <div class="card-sub">Dernières {{ recent_runs|length }} exécutions</div>
+                </div>
+                <a href="{{ mlflow_url }}" target="_blank" class="btn btn-outline" style="font-size: 12px; padding: 6px 14px;">Voir dans MLflow</a>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Agent</th>
+                            <th>Projet</th>
+                            <th>Statut</th>
+                            <th>Latence</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for run in recent_runs %}
+                        <tr>
+                            <td>
+                                <span class="legend-dot" style="background: {{ run.agent_color }};"></span>
+                                <strong>{{ run.agent_key }}</strong>
+                            </td>
+                            <td>{{ run.project_name }}</td>
+                            <td>
+                                {% if run.status == "SUCCEEDED" %}<span class="badge badge-success">✓ Réussi</span>
+                                {% elif run.status == "FAILED" %}<span class="badge badge-danger">✗ Échec</span>
+                                {% elif run.status == "SKIPPED" %}<span class="badge badge-neutral">⏭ Ignoré</span>
+                                {% elif run.status == "AWAITING_VALIDATION" %}<span class="badge badge-warning">⏸ Attente</span>
+                                {% else %}<span class="badge badge-info">{{ run.status }}</span>{% endif %}
+                            </td>
+                            <td><strong>{{ run.latency_ms }}ms</strong></td>
+                            <td style="color: var(--text-muted);">{{ run.created_at }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="empty">Aucune exécution. Lancez un agent depuis Cadria.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+ 
+        <div class="footer">
+            Actualisation automatique toutes les 30 s · <a href="/api/mlops/dashboard/">↻ Rafraîchir</a> ·
+            <a href="{{ mlflow_url }}" target="_blank">MLflow</a> ·
+            <a href="http://localhost:5173/app">Cadria</a>
+        </div>
+    </div>
+    <script>setTimeout(function(){location.reload()},30000);</script>
+</body>
+</html>

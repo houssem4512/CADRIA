@@ -39,6 +39,12 @@ from .rag import format_rag_context, retrieve_similar
 from .schemas import ScopingOutput
 from .fallback import generate_plan as fallback_plan
 
+# MLOps — MLflow tracking (optional, silent if not installed)
+try:
+    from orchestration.mlops.tracking import log_agent_run as _mlflow_log
+except ImportError:
+    _mlflow_log = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -119,6 +125,59 @@ def run(run: AgentRun) -> dict[str, Any]:
     else:
         agent.avg_latency_ms = latency_ms
     agent.save(update_fields=["total_runs", "successful_runs", "last_run_at", "avg_latency_ms"])
+
+    # MLOps — log to MLflow
+    if _mlflow_log:
+        try:
+            _mlflow_log(
+                agent_key="SCOPING",
+                run_id=run.id,
+                project_id=run.project.id,
+                project_name=run.project.name,
+                status="SUCCEEDED",
+                latency_ms=latency_ms,
+                metrics={
+                    "tokens_in": meta.get("tokens_in", 0),
+                    "tokens_out": meta.get("tokens_out", 0),
+                    "confidence": float(proposal.confidence),
+                    "tasks_count": len(proposal.tasks_payload or []),
+                    "lots_count": len(proposal.lots_payload or []),
+                    "sprints_count": len(proposal.sprints_payload or []),
+                    "risks_count": len(proposal.risks_payload or []),
+                    "total_estimate_hours": float(proposal.total_estimate_hours),
+                    "llm_latency_ms": meta.get("latency_ms", 0),
+                },
+                params={
+                    "model": meta.get("model", "unknown"),
+                    "engine": meta.get("engine", "llm"),
+                    "methodology": run.project.methodology,
+                    "rag_used": str(meta.get("rag_used", plan.get("_rag_used", False))),
+                    "project_reference": run.project.reference,
+                },
+                artifacts={
+                    "proposal": {
+                        "id": proposal.id,
+                        "title": proposal.title,
+                        "summary": proposal.summary,
+                        "tasks": proposal.tasks_payload,
+                        "lots": proposal.lots_payload,
+                        "sprints": proposal.sprints_payload,
+                        "risks": proposal.risks_payload,
+                        "assumptions": proposal.assumptions,
+                        "confidence": float(proposal.confidence),
+                        "total_estimate_hours": float(proposal.total_estimate_hours),
+                    },
+                    "llm_response": {
+                        "engine": meta.get("engine"),
+                        "model": meta.get("model"),
+                        "tokens_in": meta.get("tokens_in", 0),
+                        "tokens_out": meta.get("tokens_out", 0),
+                        "latency_ms": meta.get("latency_ms", 0),
+                    },
+                },
+            )
+        except Exception:
+            pass  # MLOps logging is best-effort
 
     _audit_success(run, correlation_id, proposal, meta)
     _notify_pm(run, proposal)

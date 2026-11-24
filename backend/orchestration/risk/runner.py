@@ -34,6 +34,12 @@ from .features import (
 from .nlp import analyze_comments
 from .scorer import predict, explain, ensure_model_ready
 
+# MLOps — MLflow tracking (optional, silent if not installed)
+try:
+    from orchestration.mlops.tracking import log_agent_run as _mlflow_log
+except ImportError:
+    _mlflow_log = None
+
 logger = logging.getLogger(__name__)
 
 # Threshold for creating a RiskAlert
@@ -149,6 +155,46 @@ def run(run: AgentRun) -> dict[str, Any]:
         else:
             agent.avg_latency_ms = latency_ms
         agent.save(update_fields=["total_runs", "successful_runs", "last_run_at", "avg_latency_ms"])
+
+        # MLOps — log to MLflow
+        if _mlflow_log:
+            try:
+                _mlflow_log(
+                    agent_key="RISK",
+                    run_id=run.id,
+                    project_id=run.project.id,
+                    project_name=run.project.name,
+                    status="SUCCEEDED",
+                    latency_ms=latency_ms,
+                    metrics={
+                        "risk_score": round(project_risk * 100, 2),
+                        "alerts_count": len(alerts),
+                        "critical_count": sum(1 for a in alerts if a["severity"] == "CRITICAL"),
+                        "warning_count": sum(1 for a in alerts if a["severity"] == "WARNING"),
+                        "comments_total": comment_stats.get("total", 0),
+                        "comments_with_signals": comment_stats.get("with_signals", 0),
+                        "weak_signal_ratio": comment_stats.get("total", 0) and
+                            round(comment_stats.get("with_signals", 0) / comment_stats.get("total", 1), 3),
+                        "tasks_analyzed": len(task_scores),
+                    },
+                    params={
+                        "model_used": "rule-based" if not model_ready else "xgboost-v1",
+                        "alert_threshold": ALERT_THRESHOLD,
+                        "high_alert_threshold": HIGH_ALERT_THRESHOLD,
+                        "project_health": project.health,
+                    },
+                    artifacts={
+                        "risk_report": {
+                            "risk_score": round(project_risk * 100, 2),
+                            "project_health": project.health,
+                            "alerts": alerts,
+                            "task_scores": task_scores[:10],
+                            "comment_stats": comment_stats,
+                        },
+                    },
+                )
+            except Exception:
+                pass  # MLOps logging is best-effort
 
         _audit(run, correlation_id, project_risk, alerts, comment_stats, model_ready)
         _notify(run, project_risk, alerts)

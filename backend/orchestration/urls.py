@@ -19,6 +19,13 @@ from .trello_views import (
     trello_disconnect,
     trello_boards,
 )
+from .mlops.metrics_views import (
+    MetricsOverviewView,
+    MetricsAgentDetailView,
+    MetricsTimelineView,
+    MetricsMlflowLogView,
+)
+from .mlops.dashboard_view import dashboard_view
 
 router = DefaultRouter()
 router.register(r"agents", AgentDefinitionViewSet, basename="agent")
@@ -42,4 +49,11 @@ urlpatterns = [
     path("trello/status/", trello_status, name="trello-status"),
     path("trello/disconnect/", trello_disconnect, name="trello-disconnect"),
     path("trello/boards/", trello_boards, name="trello-boards"),
+    # MLOps — metrics endpoints for Grafana
+    path("metrics/", MetricsOverviewView.as_view(), name="metrics-overview"),
+    path("metrics/agents/<str:agent_key>/", MetricsAgentDetailView.as_view(), name="metrics-agent-detail"),
+    path("metrics/timeline/", MetricsTimelineView.as_view(), name="metrics-timeline"),
+    path("metrics/mlflow/", MetricsMlflowLogView.as_view(), name="metrics-mlflow-log"),
+    # MLOps — built-in dashboard
+    path("mlops/dashboard/", dashboard_view, name="mlops-dashboard"),
 ] + router.urls

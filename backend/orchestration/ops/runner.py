@@ -15,6 +15,7 @@ This agent is INVOKED AFTER a Proposal is approved (or to preview assignments
 before approval via dry_run=True).
 """
 from __future__ import annotations
+import json
 import logging
 from typing import Any
 
@@ -27,6 +28,12 @@ from projects.models import Integration
 
 from .embedder import score_match
 from .assigner import assign_tasks, compute_load_balance
+
+# MLOps — MLflow tracking (optional, silent if not installed)
+try:
+    from orchestration.mlops.tracking import log_agent_run as _mlflow_log
+except ImportError:
+    _mlflow_log = None
 
 logger = logging.getLogger(__name__)
 
@@ -204,6 +211,45 @@ def run(run: AgentRun) -> dict[str, Any]:
     agent.failed_runs = (agent.failed_runs or 0) + (1 if errors else 0)
     agent.last_run_at = finished
     agent.save(update_fields=["total_runs", "successful_runs", "failed_runs", "last_run_at"])
+
+    # MLOps — log to MLflow
+    if _mlflow_log:
+        try:
+            _mlflow_log(
+                agent_key="OPS",
+                run_id=run.id,
+                project_id=run.project.id,
+                project_name=run.project.name,
+                status="SUCCEEDED" if not errors else "FAILED",
+                latency_ms=latency_ms,
+                metrics={
+                    "assignments_count": len(assignments),
+                    "load_balance_index": round(balance_index, 3),
+                    "external_pushed": len(created_external),
+                    "api_calls": api_calls,
+                    "errors_count": len(errors),
+                    "dry_run": 1 if dry_run else 0,
+                },
+                params={
+                    "provider": provider,
+                    "dry_run": str(dry_run),
+                    "proposal_id": str(proposal.id) if proposal else "none",
+                    "tasks_count": str(len(tasks_payload)),
+                    "members_count": str(len(member_dicts)),
+                },
+                artifacts={
+                    "assignment_result": {
+                        "assignments": assignments[:20],
+                        "load_balance_index": round(balance_index, 3),
+                        "created_external": created_external[:10],
+                        "errors": errors[:5],
+                        "dry_run": dry_run,
+                        "provider": provider,
+                    },
+                },
+            )
+        except Exception:
+            pass  # MLOps logging is best-effort
 
     _audit(run, correlation_id, proposal, assignments, balance_index, dry_run, errors)
     _notify(run, proposal, assignments, dry_run)
